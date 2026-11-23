@@ -1,0 +1,1218 @@
+<!doctype html>
+<html lang="fil">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#183A2B">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px/1.45 system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Kapehan POS </title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: the shop itself. Bottle-green wall as the side rail (bottom tab bar on phones), white counter-top work surface,
+   walnut slat counter on the order ticket, orange stool-seat highlights, gold bean-bag accents, warm track-light glow. */
+:root{
+  --bg:#F3F1EC; --surface:#FFFFFF; --surface-2:#EAE6DE; --ink:#15201A; --muted:#5B675F; --line:#D9D4C9;
+  --accent:#1E4A35; --accent-ink:#FFFFFF; --accent-soft:#DCE8E0; --roast:#4E2C1E;
+  --wall:#183A2B; --wall-ink:#F2EEE6; --wood:#4E2C1E; --wood-2:#3A2016; --stool:#C2552B; --stool-ink:#FFFFFF; --gold:#C49A3E; --glow:rgba(255,196,120,.22);
+  --warn:#9A6212; --warn-bg:#FAEFD6; --crit:#B3261E; --crit-bg:#FBE2DF; --ok:#1E4A35;
+  --shadow:0 8px 28px rgba(21,32,26,.16);
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Inter", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E1612; --surface:#15201A; --surface-2:#1D2A23; --ink:#ECE8DF; --muted:#9AA69E; --line:#2A3830;
+  --accent:#8CC9A6; --accent-ink:#0C1A12; --accent-soft:#1D3328; --roast:#E2B796;
+  --wall:#12291F; --wall-ink:#F2EEE6; --wood:#4E2C1E; --wood-2:#3A2016; --stool:#E07447; --stool-ink:#1A0D07; --gold:#D8B05A; --glow:rgba(255,190,110,.14);
+  --warn:#E8B252; --warn-bg:#382B12; --crit:#F28B82; --crit-bg:#3D1C19; --ok:#8CC9A6;
+  --shadow:0 8px 28px rgba(0,0,0,.55); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1612; --surface:#15201A; --surface-2:#1D2A23; --ink:#ECE8DF; --muted:#9AA69E; --line:#2A3830;
+  --accent:#8CC9A6; --accent-ink:#0C1A12; --accent-soft:#1D3328; --roast:#E2B796;
+  --wall:#12291F; --wall-ink:#F2EEE6; --wood:#4E2C1E; --wood-2:#3A2016; --stool:#E07447; --stool-ink:#1A0D07; --gold:#D8B05A; --glow:rgba(255,190,110,.14);
+  --warn:#E8B252; --warn-bg:#382B12; --crit:#F28B82; --crit-bg:#3D1C19; --ok:#8CC9A6;
+  --shadow:0 8px 28px rgba(0,0,0,.55); color-scheme:dark}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.45}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance;letter-spacing:-.01em}
+h1{font-size:26px;font-weight:700}
+h2{font-size:17px;font-weight:700}
+.label{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
+.muted{color:var(--muted)}
+
+.app{display:grid;grid-template-columns:212px 1fr;min-height:100%}
+.rail{background:radial-gradient(120% 38% at 50% 0%, var(--glow), transparent 70%), var(--wall);color:var(--wall-ink);padding-block:20px;padding-left:max(14px, env(safe-area-inset-left,0px));padding-right:14px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh;border-right:6px solid var(--wood)}
+.brand{font-family:var(--f-display);font-weight:700;font-size:20px;padding:4px 10px 18px;line-height:1.1;margin-bottom:6px;border-bottom:3px solid var(--wood)}
+.brand small{display:block;font-family:var(--f-body);font-weight:500;font-size:11px;color:var(--gold);letter-spacing:.08em;text-transform:uppercase;margin-top:4px}
+.rail a{display:flex;align-items:center;gap:10px;padding:10px;border-radius:8px;color:inherit;text-decoration:none;font-weight:500;opacity:.8}
+.rail a:hover{opacity:1;background:rgba(255,255,255,.07)}
+.rail a[aria-current="page"]{opacity:1;background:var(--stool);color:var(--stool-ink)}
+.rail svg{width:18px;height:18px;flex:none}
+.rail .spacer{flex:1}
+.rail .conn{font-size:11px;opacity:.7;padding:0 10px}
+
+.main{min-width:0;display:flex;flex-direction:column}
+.topbar{display:flex;align-items:center;gap:12px;padding-block:16px;padding-left:max(20px, env(safe-area-inset-left,0px));padding-right:max(20px, env(safe-area-inset-right,0px));border-bottom:1px solid var(--line);background:var(--bg);position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.topbar .grow{flex:1;min-width:0}
+.topbar .date{font-size:12px;color:var(--muted)}
+.view{padding-block:20px 40px;padding-left:max(20px, env(safe-area-inset-left,0px));padding-right:max(20px, env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:20px;min-width:0}
+
+.banner{margin:12px 20px 0;padding:10px 14px;border-radius:8px;background:var(--warn-bg);color:var(--warn);font-weight:500}
+
+.btn{border:1px solid var(--line);background:var(--surface);padding:8px 14px;border-radius:8px;font-weight:600;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.danger{color:var(--crit);border-color:var(--crit)}
+.btn.small{padding:5px 10px;font-size:13px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.iconbtn{border:1px solid var(--line);background:var(--surface);width:40px;height:40px;border-radius:50%;display:grid;place-items:center;position:relative}
+.iconbtn svg{width:19px;height:19px}
+.badge{position:absolute;top:-4px;right:-4px;min-width:19px;height:19px;padding:0 5px;border-radius:10px;background:var(--crit);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;min-width:0}
+.panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:4px;text-align:left}
+.kpi .v{font-family:var(--f-display);font-size:28px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
+.kpi .d{font-size:12px;color:var(--muted)}
+button.kpi{cursor:pointer}
+.kpi.alert{border-color:var(--warn);background:var(--warn-bg)}
+.kpi.alert .v{color:var(--warn)}
+.quick{display:flex;gap:10px;flex-wrap:wrap}
+.grid2{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:16px}
+
+.rows{display:flex;flex-direction:column}
+.row{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.row .grow{flex:1;min-width:0}
+.row .sub{font-size:12px;color:var(--muted)}
+
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:3px 8px;border-radius:999px;white-space:nowrap}
+.chip.ok{background:var(--accent-soft);color:var(--ok)}
+.chip.low{background:var(--warn-bg);color:var(--warn)}
+.chip.out{background:var(--crit-bg);color:var(--crit)}
+.chip.best{background:var(--stool);color:var(--stool-ink)}
+
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+table{width:100%;border-collapse:collapse;min-width:640px}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);font-weight:600}
+td{padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+tr.low td{background:var(--warn-bg)}
+tr.out td{background:var(--crit-bg)}
+td.r,th.r{text-align:right}
+.meter{height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden;width:90px}
+.meter i{display:block;height:100%;background:var(--accent)}
+tr.low .meter i{background:var(--warn)} tr.out .meter i{background:var(--crit)}
+.actions{display:flex;gap:6px;justify-content:flex-end}
+
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.toolbar .grow{flex:1}
+input[type=text],input[type=number],input[type=search],select{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-width:0}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:transparent;padding:7px 12px;font-weight:600;font-size:13px}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+
+/* POS */
+.pos{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px;align-items:start}
+.cats{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px}
+.cats button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 14px;font-weight:600;white-space:nowrap}
+.cats button[aria-pressed="true"]{background:var(--wall);color:var(--wall-ink);border-color:var(--wall)}
+.cats button[aria-pressed="true"] .muted{color:var(--gold)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.tile{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:14px;text-align:left;display:flex;flex-direction:column;gap:6px;min-height:112px;transition:transform .12s, border-color .12s}
+.tile:hover{border-color:var(--accent);transform:translateY(-1px)}
+.tile .n{font-family:var(--f-display);font-weight:700;font-size:16px;line-height:1.15}
+.tile .p{margin-top:auto;font-family:var(--f-mono);font-size:13px;color:var(--muted)}
+.tile.short{border-style:dashed}
+.tile .chip{align-self:flex-start}
+.ticket{position:sticky;top:84px;background:var(--surface);border:1px solid var(--line);border-radius:12px;display:flex;flex-direction:column;max-height:calc(100vh - 104px)}
+.ticket{overflow:hidden}
+.ticket header{padding:14px 16px;display:flex;justify-content:space-between;align-items:center;color:#F6EEE4;
+  background:repeating-linear-gradient(90deg, var(--wood) 0 9px, var(--wood-2) 9px 11px);border-bottom:4px solid var(--surface-2)}
+.tile .n::after{content:"";display:block;width:22px;height:3px;border-radius:2px;background:var(--gold);margin-top:8px}
+.ticket .lines{overflow-y:auto;padding:4px 16px;flex:1;min-height:80px}
+.line{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:10px 0;border-bottom:1px dashed var(--line)}
+.line .meta{font-size:12px;color:var(--muted)}
+.stepper{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:8px}
+.stepper button{border:0;background:none;width:28px;height:28px;font-weight:700}
+.stepper span{min-width:22px;text-align:center}
+.ticket footer{padding:12px 16px 16px;border-top:1px dashed var(--line);display:flex;flex-direction:column;gap:10px}
+.sumrow{display:flex;justify-content:space-between;font-size:13px}
+.sumrow.total{font-family:var(--f-display);font-size:22px;font-weight:700}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:12px;font-weight:600;color:var(--muted)}
+.empty{padding:28px 10px;text-align:center;color:var(--muted)}
+
+/* chart */
+.chart svg{width:100%;height:auto;display:block}
+.rank{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:4px 12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.rank:first-child{border-top:0}
+.rank .rk{font-family:var(--f-display);font-weight:700;font-size:18px;color:var(--muted)}
+.rank:first-child .rk{color:var(--stool)}
+.rank .bar{grid-column:2/4;height:5px;background:var(--surface-2);border-radius:3px;overflow:hidden}
+.rank .bar i{display:block;height:100%;background:var(--accent)}
+
+/* menu mgmt */
+.mcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.mcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.mcard ul{margin:0;padding-left:18px;font-size:13px;color:var(--muted)}
+
+/* bell */
+.notif{position:absolute;right:0;top:48px;width:min(360px, calc(100vw - 32px));background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);z-index:20;display:flex;flex-direction:column;max-height:70vh}
+.notif header{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line);gap:8px}
+.notif .list{overflow-y:auto}
+.nitem{display:flex;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line);align-items:flex-start}
+.nitem.unread{background:var(--warn-bg)}
+.nitem .dot{width:8px;height:8px;border-radius:50%;margin-top:6px;flex:none;background:var(--warn)}
+.nitem.out .dot{background:var(--crit)}
+.nitem:not(.unread) .dot{background:var(--line)}
+
+/* modal */
+.scrim{position:fixed;inset:0;background:rgba(10,12,9,.45);display:grid;place-items:center;z-index:50;padding:16px}
+.modal{background:var(--surface);border-radius:14px;box-shadow:var(--shadow);width:min(520px,100%);max-height:calc(100vh - 32px);overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:14px}
+.modal .foot{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.sizes{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.sizes button{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px;text-align:center}
+.sizes button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent)}
+.sizes b{display:block;font-family:var(--f-display);font-size:18px}
+.check{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:8px}
+.check .grow{flex:1}
+.form2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.recipe-line{display:grid;grid-template-columns:minmax(0,1fr) 90px auto auto;gap:6px;align-items:center}
+.receipt{font-family:var(--f-mono);font-size:13px;background:var(--surface-2);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:4px}
+.receipt .sumrow{font-size:13px}
+
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:500;z-index:60;box-shadow:var(--shadow);max-width:calc(100vw - 32px)}
+.toast.err{background:var(--crit);color:#fff}
+
+/* salary */
+.subtabs{display:flex;gap:6px;flex-wrap:wrap}
+.subtabs button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 14px;font-weight:600}
+.subtabs button[aria-pressed="true"]{background:var(--wall);color:var(--wall-ink);border-color:var(--wall)}
+.emptiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.emptile{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:12px;display:flex;gap:10px;align-items:center;text-align:left}
+.emptile[aria-pressed="true"]{border-color:var(--stool);box-shadow:inset 0 0 0 1px var(--stool)}
+.emptile small{display:block;color:var(--muted);font-size:12px}
+table.tc{min-width:720px}
+table.tc td,table.tc th{padding:5px 8px}
+table.tc tr.has td{background:var(--accent-soft)}
+.tin{width:74px;font-family:var(--f-mono);font-size:13px;padding:5px 6px!important;text-align:center}
+.flag{color:var(--warn);font-size:12px;font-weight:600}
+.paytot{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:12px}
+.paytot div{background:var(--surface-2);border-radius:10px;padding:10px 12px}
+.paytot b{font-family:var(--f-display);font-size:20px;display:block}
+.paytot .gt{background:var(--wall);color:var(--wall-ink)}
+.cellnum{width:96px;text-align:right;font-family:var(--f-mono)}
+.slip{border:1px dashed var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px;font-size:13px}
+.slip-h{display:flex;justify-content:space-between;align-items:baseline;border-bottom:3px solid var(--wood);padding-bottom:6px}
+.slip-h b{font-family:var(--f-display);font-size:16px}
+.slip-h span{letter-spacing:.12em;font-weight:700;color:var(--stool);font-size:12px}
+.slip table{min-width:0;font-family:var(--f-mono);font-size:12.5px}
+.slip td{padding:4px 2px;border:0}
+.slip tr.tot td{border-top:1px dashed var(--line);font-weight:700;padding-top:6px}
+.slip-s{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:var(--muted);font-size:12px}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+/* login / user */
+.me{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 4px 4px 12px;font-weight:600;max-width:240px}
+.me span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.me .role{font-size:11px;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:.05em}
+.lock{position:fixed;inset:0;z-index:40;background:radial-gradient(60% 45% at 50% 0%, var(--glow), transparent 70%), var(--wall);color:var(--wall-ink);display:grid;place-items:center;overflow-y:auto;padding-block:24px;padding-left:max(16px, env(safe-area-inset-left,0px));padding-right:max(16px, env(safe-area-inset-right,0px))}
+.lockbox{width:min(440px,100%);display:flex;flex-direction:column;gap:16px}
+.lockbox .brandmark{font-family:var(--f-display);font-weight:700;font-size:30px;line-height:1.05;padding-bottom:10px;border-bottom:4px solid var(--wood)}
+.lockbox .brandmark small{display:block;font-family:var(--f-body);font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-top:6px}
+.lockbox > h2,.lockbox h2{color:inherit}
+.lockbox .muted{color:var(--wall-ink);opacity:.72}
+.lockbox .panel{color:var(--ink)}
+.lockbox .panel .muted{color:var(--muted);opacity:1}
+.who{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
+.who button{border:1px solid transparent;background:var(--surface);color:var(--ink);border-radius:12px;padding:16px 10px;display:flex;flex-direction:column;align-items:center;gap:8px;font-weight:600;border-bottom:4px solid var(--stool)}
+.who button:hover{transform:translateY(-2px)}
+.who .muted{color:var(--muted)!important;opacity:1!important}
+.avatar{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);font-family:var(--f-display);font-weight:700;font-size:18px}
+.dots{display:flex;gap:14px;justify-content:center;padding:6px 0}
+.dots i{width:14px;height:14px;border-radius:50%;border:2px solid var(--wall-ink);opacity:.6}
+.dots i.on{background:var(--gold);border-color:var(--gold);opacity:1}
+.dots.shake{animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.pad button{border:1px solid transparent;background:var(--surface);color:var(--ink);border-radius:12px;height:58px;font-family:var(--f-display);font-size:22px;font-weight:700}
+.pad button:active{background:var(--surface-2)}
+@media (max-width:1100px){.pos{grid-template-columns:minmax(0,1fr) 320px}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:860px){
+  .app{grid-template-columns:1fr}
+  .rail{position:fixed;inset:auto 0 0 0;height:auto;border-right:0;border-top:4px solid var(--wood);flex-direction:row;justify-content:space-around;padding:6px max(8px, env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px, env(safe-area-inset-left,0px));z-index:30;gap:0}
+  .rail .brand,.rail .spacer,.rail .conn{display:none}
+  .rail a{flex-direction:column;gap:3px;font-size:11px;padding:6px 8px}
+  .view{padding-bottom:96px}
+  .pos,.grid2{grid-template-columns:1fr}
+  .ticket{position:static;max-height:none}
+}
+@media (max-width:520px){
+  .topbar{gap:8px;padding-block:10px}
+  .topbar .date{display:none}
+  .topbar h1{font-size:19px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .me{padding-left:10px;max-width:150px}
+  .me .role{display:none}
+  .iconbtn{width:36px;height:36px}
+  .rail a{flex:1;min-width:0;padding:6px 1px;font-size:10px}
+  .banner{margin:10px 16px 0}
+}
+@media (max-width:480px){.kpi .v{font-size:22px}.form2{grid-template-columns:1fr}h1{font-size:22px}.recipe-line{grid-template-columns:1fr 70px auto auto}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="app">
+  <nav class="rail" aria-label="Stations">
+    <div class="brand">Kapehan POS<small>Coffee &amp; Milktea</small></div>
+    <a href="#dashboard" data-v="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>Dashboard</a>
+    <a href="#pos" data-v="pos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8h12v6a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17"/><path d="M8 2v3M12 2v3"/></svg>POS</a>
+    <a href="#inventory" data-v="inventory"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4-9 4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg>Inventory</a>
+    <a href="#reports" data-v="reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Reports</a>
+    <a href="#menu" data-v="menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h11a2 2 0 0 1 2 2v16l-3-2-3 2-3-2-3 2V4"/><path d="M9 8h6M9 12h6"/></svg>Menu</a>
+    <a href="#salary" data-v="salary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 10v4M18 10v4"/></svg>Salary</a>
+    <a href="#staff" data-v="staff"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0"/><path d="M17 4a4 4 0 0 1 0 8M22 21a7 7 0 0 0-4-6.3"/></svg>Staff</a>
+    <div class="spacer"></div>
+    <div class="conn" id="conn">Kumokonekta…</div>
+  </nav>
+  <div class="main">
+    <div class="topbar">
+      <div class="grow"><h1 id="vtitle">Dashboard</h1><div class="date" id="today"></div></div>
+      <div class="me" id="me" hidden></div>
+      <div style="position:relative">
+        <button class="iconbtn" id="bell" aria-label="Notifications" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span class="badge" id="badge" hidden>0</span></button>
+        <div class="notif" id="npanel" hidden></div>
+      </div>
+    </div>
+    <div class="banner" id="banner" hidden></div>
+    <div class="view" id="view"></div>
+  </div>
+</div>
+<div class="lock" id="lock" hidden></div>
+<div id="modalroot"></div>
+
+<script>
+(function(){
+"use strict";
+const CATS=["Espresso","Iced Coffee","Milktea","Pastries","Add-ons"];
+const SIZES=["S","M","L"], MULT={S:0.75,M:1,L:1.25};
+const PAYS=["Cash","GCash","Card"];
+const VIEWS={dashboard:"Dashboard",pos:"POS / Cashier",inventory:"Inventory",reports:"Best Sellers & Reports",menu:"Menu Management",salary:"Salary",staff:"Staff"};
+const CASHIER_VIEWS=["dashboard","pos","inventory"];
+const OWNER_ONLY=["inv-new","inv-edit","inv-del","menu-new","menu-edit","menu-del","staff-new","staff-edit","staff-toggle","staff-del","n-clear"];
+const UNITS=["g","kg","ml","L","pcs","pack"];
+const COLS=["inventory","menu","sales","notifications","staff","employees","timecards","payroll","settings"];
+const MEKEY="kapehan-pos-me";
+
+const data={inventory:new Map(),menu:new Map(),sales:new Map(),notifications:new Map(),staff:new Map(),employees:new Map(),timecards:new Map(),payroll:new Map(),settings:new Map()};
+const st={meId:(()=>{try{return localStorage.getItem(MEKEY)||""}catch(e){return""}})(),login:{pick:null,pin:"",fails:0,until:0},view:"dashboard",cart:[],disc:"none",discCustom:"",pay:"Cash",tendered:"",gref:"",invQ:"",invF:"all",period:"weekly",rankBy:"qty",cat:"Espresso",override:false,readOnly:false};
+let db=null, mode="connecting", loaded=new Set();
+
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const peso=n=>{n=Number(n)||0;return (n<0?"−":"")+"₱"+Math.abs(n).toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})};
+const peso0=n=>{n=Math.round(Number(n)||0);return (n<0?"−":"")+"₱"+Math.abs(n).toLocaleString("en-PH")};
+const fnum=n=>(Math.round((Number(n)||0)*100)/100).toLocaleString("en-PH",{maximumFractionDigits:2});
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const list=c=>[...data[c].entries()].map(([id,d])=>Object.assign({id},d));
+const dayStart=(t=Date.now())=>{const d=new Date(t);d.setHours(0,0,0,0);return d.getTime()};
+const DAY=864e5;
+function invStatus(i){const s=Number(i.stock)||0;if(s<=0)return"out";if(s<=Number(i.threshold||0))return"low";return"ok"}
+const statusChip=s=>s==="out"?'<span class="chip out">Ubos na</span>':s==="low"?'<span class="chip low">Paubos</span>':'<span class="chip ok">OK</span>';
+function priceOf(m,size){return m.sized?Number((m.prices||{})[size]||0):Number(m.price||0)}
+function fromPrice(m){return m.sized?Math.min(...SIZES.map(s=>priceOf(m,s)).filter(x=>x>0)):priceOf(m)}
+
+let toastT;
+function toast(msg,err){let t=$("#toast");if(!t){t=document.createElement("div");t.id="toast";document.body.appendChild(t)}
+  t.className="toast"+(err?" err":"");t.textContent=msg;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,3200)}
+
+/* ---------- store ---------- */
+const queues={};
+function enqueue(key,fn){const p=(queues[key]||Promise.resolve()).then(fn,fn);queues[key]=p.catch(()=>{});return p}
+function onWriteErr(e){
+  const c=e&&e.code;
+  if(c==="invalid_argument"&&!st.readOnly){st.readOnly=true;showBanner("View-only ka sa POS na ito, kaya hindi ma-save ang changes. Hilingin sa owner na gawin kang Contributor.");}
+  else if(c==="quota_exceeded")toast("Puno na ang storage ng app. Mag-delete ng lumang records.",true);
+  else toast("Hindi na-save. Subukan ulit.",true);
+}
+function put(col,id,body){
+  data[col].set(id,body);scheduleRender();
+  if(mode==="db")return enqueue(col+"/"+id,()=>db.collection(col).doc(id).set(body)).catch(onWriteErr);
+  saveLocal();return Promise.resolve();
+}
+function del(col,id){
+  data[col].delete(id);scheduleRender();
+  if(mode==="db")return enqueue(col+"/"+id,()=>db.collection(col).doc(id).delete()).catch(onWriteErr);
+  saveLocal();return Promise.resolve();
+}
+const LKEY="kapehan-pos-local";
+function saveLocal(){try{const o={};COLS.forEach(c=>o[c]=[...data[c].entries()]);localStorage.setItem(LKEY,JSON.stringify(o))}catch(e){}}
+function startLocal(){
+  mode="local";
+  try{const o=JSON.parse(localStorage.getItem(LKEY)||"null");if(o)COLS.forEach(c=>data[c]=new Map(o[c]||[]))}catch(e){}
+  $("#conn").textContent="Local mode (sa device lang)";
+  scheduleRender();
+}
+function showBanner(t){const b=$("#banner");b.textContent=t;b.hidden=!t}
+
+async function connect(){
+  for(let i=0;i<30&&!(window.claude&&window.claude.use);i++)await sleep(100);
+  if(!(window.claude&&window.claude.use)){startLocal();return}
+  const timer=setTimeout(()=>{if(loaded.size<COLS.length)showBanner("Hindi pa maabot ang data. Baka mabagal ang internet. Maghihintay pa…")},10000);
+  let d=null;try{d=await window.claude.use("db")}catch(e){}
+  if(!d){clearTimeout(timer);startLocal();return}
+  db=d;mode="db";$("#conn").textContent="Naka-sync";
+  window.claude.use("user").then(async u=>{
+    if(!u)return;
+    try{const w=await u.can("data.write");if(w===false){st.readOnly=true;showBanner("View-only ka: makikita mo ang data pero hindi ka makakapag-benta o maka-edit.")}}catch(e){}
+    try{sal.admin=await u.canEdit()}catch(e){}
+    scheduleRender();
+  }).catch(()=>{});
+  COLS.forEach(c=>{
+    const q=c==="sales"?db.collection("sales").orderBy("ts","desc").limit(1000):db.collection(c);
+    q.onSnapshot(snap=>{
+      data[c]=new Map(snap.docs.map(x=>[x.id,x.data()]));
+      if(!snap.metadata.fromCache&&!loaded.has(c)){loaded.add(c);if(loaded.size===COLS.length){clearTimeout(timer);if(!st.readOnly)showBanner("")}}
+      scheduleRender();
+    },()=>{clearTimeout(timer);showBanner("Nawala ang koneksyon sa data. I-refresh ang page.");$("#conn").textContent="Offline"});
+  });
+}
+
+/* ---------- DEMO: built-in sample data, kept only in this viewer's browser ---------- */
+const DEMO={"base":1794931200000,"inventory":[["beans",{"name":"Espresso Beans","unit":"g","stock":2400,"threshold":1000}],["milk",{"name":"Fresh Milk","unit":"ml","stock":9000,"threshold":4000}],["oat",{"name":"Oat Milk","unit":"ml","stock":2000,"threshold":2500}],["caramel",{"name":"Caramel Syrup","unit":"ml","stock":420,"threshold":500}],["tea",{"name":"Black Tea Leaves","unit":"g","stock":900,"threshold":200}],["creamer",{"name":"Milktea Creamer","unit":"g","stock":2500,"threshold":800}],["pearls",{"name":"Tapioca Pearls","unit":"g","stock":3000,"threshold":1000}],["cups",{"name":"Cups 16oz","unit":"pcs","stock":180,"threshold":100}],["lids",{"name":"Lids","unit":"pcs","stock":160,"threshold":100}],["croissant",{"name":"Butter Croissant","unit":"pcs","stock":3,"threshold":5}]],"menu":[["espresso",{"name":"Espresso","category":"Espresso","sized":false,"price":90,"recipe":[{"inv":"beans","qty":18,"fixed":false},{"inv":"cups","qty":1,"fixed":false}],"active":true}],["americano",{"name":"Americano","category":"Espresso","sized":true,"prices":{"S":90,"M":110,"L":130},"recipe":[{"inv":"beans","qty":18,"fixed":true},{"inv":"cups","qty":1,"fixed":true},{"inv":"lids","qty":1,"fixed":true}],"active":true}],["cafe-latte",{"name":"Cafe Latte","category":"Espresso","sized":true,"prices":{"S":120,"M":140,"L":160},"recipe":[{"inv":"beans","qty":18,"fixed":true},{"inv":"milk","qty":180,"fixed":false},{"inv":"cups","qty":1,"fixed":true},{"inv":"lids","qty":1,"fixed":true}],"active":true}],["iced-latte",{"name":"Iced Latte","category":"Iced Coffee","sized":true,"prices":{"S":130,"M":150,"L":170},"recipe":[{"inv":"beans","qty":18,"fixed":true},{"inv":"milk","qty":200,"fixed":false},{"inv":"cups","qty":1,"fixed":true},{"inv":"lids","qty":1,"fixed":true}],"active":true}],["iced-caramel-macchiato",{"name":"Iced Caramel Macchiato","category":"Iced Coffee","sized":true,"prices":{"S":150,"M":170,"L":190},"recipe":[{"inv":"beans","qty":18,"fixed":true},{"inv":"milk","qty":200,"fixed":false},{"inv":"caramel","qty":30,"fixed":false},{"inv":"cups","qty":1,"fixed":true},{"inv":"lids","qty":1,"fixed":true}],"active":true}],["iced-oat-latte",{"name":"Iced Oat Latte","category":"Iced Coffee","sized":true,"prices":{"S":150,"M":170,"L":190},"recipe":[{"inv":"beans","qty":18,"fixed":true},{"inv":"oat","qty":200,"fixed":false},{"inv":"cups","qty":1,"fixed":true},{"inv":"lids","qty":1,"fixed":true}],"active":true}],["classic-milktea",{"name":"Classic Milktea","category":"Milktea","sized":true,"prices":{"S":100,"M":120,"L":140},"recipe":[{"inv":"tea","qty":8,"fixed":false},{"inv":"creamer","qty":30,"fixed":false},{"inv":"cups","qty":1,"fixed":true},{"inv":"lids","qty":1,"fixed":true}],"active":true}],["caramel-milktea",{"name":"Caramel Milktea","category":"Milktea","sized":true,"prices":{"S":110,"M":130,"L":150},"recipe":[{"inv":"tea","qty":8,"fixed":false},{"inv":"creamer","qty":30,"fixed":false},{"inv":"caramel","qty":25,"fixed":false},{"inv":"cups","qty":1,"fixed":true},{"inv":"lids","qty":1,"fixed":true}],"active":true}],["butter-croissant",{"name":"Butter Croissant","category":"Pastries","sized":false,"price":85,"recipe":[{"inv":"croissant","qty":1,"fixed":false}],"active":true}],["extra-shot",{"name":"Extra Shot","category":"Add-ons","sized":false,"price":40,"recipe":[{"inv":"beans","qty":18,"fixed":false}],"active":true}],["pearls",{"name":"Pearls","category":"Add-ons","sized":false,"price":20,"recipe":[{"inv":"pearls","qty":50,"fixed":false}],"active":true}],["caramel-drizzle",{"name":"Caramel Drizzle","category":"Add-ons","sized":false,"price":20,"recipe":[{"inv":"caramel","qty":15,"fixed":false}],"active":true}]],"sales":[["seed-001",{"ts":1792475040000,"items":[{"menuId":"iced-latte","name":"Iced Latte","size":"S","qty":1,"unit":130,"addons":[]}],"subtotal":130,"discount":0,"discountLabel":"","total":130,"payment":"Cash","tendered":200,"change":70}],["seed-002",{"ts":1792576440000,"items":[{"menuId":"cafe-latte","name":"Cafe Latte","size":"S","qty":1,"unit":120,"addons":[]},{"menuId":"americano","name":"Americano","size":"L","qty":2,"unit":130,"addons":[]}],"subtotal":380,"discount":0,"discountLabel":"","total":380,"payment":"Cash","tendered":400,"change":20}],["seed-003",{"ts":1792630260000,"items":[{"menuId":"iced-latte","name":"Iced Latte","size":"M","qty":1,"unit":150,"addons":[]},{"menuId":"espresso","name":"Espresso","size":null,"qty":2,"unit":90,"addons":[]}],"subtotal":330,"discount":0,"discountLabel":"","total":330,"payment":"GCash"}],["seed-004",{"ts":1792661820000,"items":[{"menuId":"iced-latte","name":"Iced Latte","size":"M","qty":1,"unit":150,"addons":[]},{"menuId":"iced-latte","name":"Iced Latte","size":"S","qty":1,"unit":130,"addons":[]}],"subtotal":280,"discount":0,"discountLabel":"","total":280,"payment":"Cash","tendered":300,"change":20}],["seed-005",{"ts":1792713540000,"items":[{"menuId":"americano","name":"Americano","size":"L","qty":1,"unit":130,"addons":[]},{"menuId":"cafe-latte","name":"Cafe Latte","size":"M","qty":1,"unit":140,"addons":[]}],"subtotal":270,"discount":0,"discountLabel":"","total":270,"payment":"Cash","tendered":300,"change":30}],["seed-006",{"ts":1792829400000,"items":[{"menuId":"classic-milktea","name":"Classic Milktea","size":"S","qty":1,"unit":120,"addons":[{"id":"pearls","name":"Pearls","price":20}]},{"menuId":"iced-caramel-macchiato","name":"Iced Caramel Macchiato","size":"M","qty":1,"unit":170,"addons":[]},{"menuId":"iced-caramel-macchiato","name":"Iced Caramel Macchiato","size":"S","qty":1,"unit":150,"addons":[]}],"subtotal":440,"discount":0,"discountLabel":"","total":440,"payment":"Cash","tendered":500,"change":60}],["seed-007",{"ts":1792828440000,"items":[{"menuId":"iced-latte","name":"Iced Latte","size":"L","qty":2,"unit":170,"addons":[]},{"menuId":"iced-latte","name":"Iced Latte","size":"L","qty":1,"unit":170,"addons":[]}],"subtotal":510,"discount":0,"discountLabel":"","total":510,"payment":"GCash"}],["seed-008",{"ts":1792894800000,"items":[{"menuId":"iced-latte","name":"Iced Latte","size":"M","qty":1,"unit":150,"addons":[]}],"subtotal":150,"discount":0,"discountLabel":"","total":150,"payment":"Cash","tendered":200,"change":50}],["seed-009",{"ts":1792885320000,"items":[{"menuId":"iced-latte","name":"Iced Latte","size":"L","qty":1,"unit":210,"addons":[{"id":"extra-shot","name":"Extra Shot","price":40}]},{"menuId":"cafe-latte","name":"Cafe Latte","size":"M","qty":1,"unit":140,"addons":[]}],"subtotal":350,"discount":0,"discountLabel":"","total":350,"payment":"Card"}],["seed-010",{"ts":1792993740000,"items":[{"menuId":"americano","name":"Americano","size":"M","qty":2,"unit":150,"addons":[{"id":"extra-shot","name":"Extra Shot","price":40}]},{"menuId":"iced-latte","name":"Iced Latte","size":"S","qty":1,"unit":130,"addons":[]}],"subtotal":430,"discount":0,"discountLabel":"","total":430,"payment":"Cash","tendered":500,"change":70}],["seed-011",{"ts":1793085120000,"items":[{"menuId":"butter-croissant","name":"Butter Croissant","size":null,"qty":1,"unit":85,"addons":[]}],"subtotal":85,"discount":0,"discountLabel":"","total":85,"payment":"GCash"}],["seed-012",{"ts":1793146860000,"items":[{"menuId":"cafe-latte","name":"Cafe Latte","size":"S","qty":1,"unit":120,"addons":[]}],"subtotal":120,"discount":0,"discountLabel":"","total":120,"payment":"GCash"}],["seed-013",{"ts":1793164860000,"items":[{"menuId":"iced-latte","name":"Iced Latte","size":"M","qty":1,"unit":150,"addons":[]}],"subtotal":150,"discount":0,"discountLabel":"","total":150,"payment":"Cash","tendered":200,"change":50}],["seed-014",{"ts":1793175840000,"items":[{"menuId":"iced-latte","name":"Iced Latte","size":"M","qty":2,"unit":150,"addons":[]}],"subtotal":300,"discount":0,"discountLabel":"","total":300,"payment":"Card"}],["seed-015",{"ts":1793241000000,"items":[{"menuId":"caramel-milktea","name":"Caramel Milktea","size":"L","qty":1,"unit":150,"addons":[]}],"subtotal":150,"discount":0,"discountLabel":"","total":150,"payment":"GCash"}],["seed-016",{"ts":1793268420000,"items":[{"menuId":"butter-croissant","name":"Butter Croissant","size":null,"qty":2,"unit":85,"addons":[]},{"menuId":"americano","name":"Americano","size":"M","qty":1,"unit":150,"addons":[{"id":"extra-shot","name":"Extra Shot","price":40}]},{"menuId":"cafe-latte","name":"Cafe Latte","size":"M","qty":1,"unit":140,"addons":[]}],"subtotal":460,"discount":0,"discountLabel":"","total":460,"payment":"Cash","tendered":500,"change":40}],["seed-017",{"ts":1793245440000,"items":[{"menuId":"butter-croissant","name":"Butter Croissant","size":null,"qty":1,"unit":85,"addons":[]},{"menuId":"iced-latte","name":"Iced Latte","size":"M","qty":1,"unit":150,"addons":[]}],"subtotal":235,"discount":0,"discountLabel":"","total":235,"payment":"Cash","tendered":300,"change":65}],["seed-018",{"ts":1793320440000,"items":[{"menuId":"iced-latte","name":"Iced Latte","size":"M","qty":2,"unit":150,"addons":[]},{"menuId":"iced-latte","name":"Iced Latte","size":"M","qty":1,"unit":150,"addons":[]}],"subtotal":450,"discount":0,"discountLabel":"","total":450,"payment":"GCash"}],["seed-019",{"ts":1793321280000,"items":[{"menuId":"americano","name":"Americano","size":"M","qty":2,"unit":110,"addons":[]}],"subtotal":220,"discount":0,"discountLabel":"","total":220,"payment":"Cash","tendered":300,"change":80}],["seed-020",{"ts":1793344920000,"items":[{"menuId":"iced-latte","name":"Iced Latte","size":"M","qty":2,"unit":150,"addons":[]},{"menuId":"caramel-milktea","name":"Caramel Milktea","size":"M","qty":1,"unit":150,"addons":[{"id":"pearls","name":"Pearls","price":20}]}],"subtotal":450,"discount":0,"discountLabel":"","total":450,"payment":"GCash"}],["seed-021",{"ts":1793425080000,"items":[{"menuId":"iced-latte","name":"Iced Latte","size":"L","qty":1,"unit":170,"addons":[]},{"menuId":"iced-latte","name":"Iced Latte","size":"L","qty":1,"unit":210,"addons":[{"id":"extra-shot","name":"Extra Shot","price":40}]},{"menuId":"iced-latte","name":"Iced Latte","size":"M","qty":1,"unit":150,"addons":[]}],"subtotal":530,"discount":0,"discountLabel":"","total":530,"payment":"GCash"}],["seed-022",{"ts":1793493960000,"items":[{"menuId":"butter-croissant","name":"Butter Croissant","size":null,"qty":1,"unit":85,"addons":[]},{"menuId":"americano","name":"Americano","size":"M","qty":2,"unit":110,"addons":[]},{"menuId":"iced-latte","name":"Iced Latte","size":"M","qty":1,"unit":150,"addons":[]}],"subtotal":455,"discount":0,"discountLabel":"","total":455,"payment":"Cash","tendered":500,"change":45}],["seed-023",{"ts":1793490900000,"items":[{"menuId":"caramel-milktea","name":"Caramel Milktea","size":"M","qty":1,"unit":130,"addons":[]},{"menuId":"iced-latte","name":"Iced Latte","size":"S","qty":1,"unit":130,"addons":[]}],"subtotal":260,"discount":0,"discountLabel":"","total":260,"payment":"GCash"}],["seed-024",{"ts":1793586300000,"items":[{"menuId":"iced-caramel-macchiato","name":"Iced Caramel Macchiato","size":"M","qty":2,"unit":170,"addons":[]},{"menuId":"cafe-latte","name":"Cafe Latte","size":"S","qty":1,"unit":120,"addons":[]},{"menuId":"iced-latte","name":"Iced Latte","size":"S","qty":1,"unit":130,"addons":[]}],"subtotal":590,"discount":0,"discountLabel":"","total":590,"payment":"Cash","tendered":600,"change":10}],["seed-025",{"ts":1793579520000,"items":[{"menuId":"iced-latte","name":"Iced Latte","size":"L","qty":1,"unit":210,"addons":[{"id":"extra-shot","name":"Extra Shot","price":40}]},{"menuId":"cafe-latte","name":"Cafe Latte","size":"M","qty":1,"unit":140,"addons":[]}],"subtotal":350,"discount":70,"discountLabel":"Senior/PWD 20%","total":280,"payment":"GCash"}],["seed-026",{"ts":1793588820000,"items":[{"menuId":"iced-latte","name":"Iced Latte","size":"S","qty":1,"unit":130,"addons":[]}],"subtotal":130,"discount":0,"discountLabel":"","total":130,"payment":"Cash","tendered":200,"change":70}],["seed-027",{"ts":1793693100000,"items":[{"menuId":"iced-caramel-macchiato","name":"Iced Caramel Macchiato","size":"M","qty":2,"unit":170,"addons":[]},{"menuId":"cafe-latte","name":"Cafe Latte","size":"M","qty":1,"unit":140,"addons":[]},{"menuId":"iced-caramel-macchiato","name":"Iced Caramel Macchiato","size":"S","qty":1,"unit":150,"addons":[]}],"subtotal":630,"discount":0,"discountLabel":"","total":630,"payment":"Cash","tendered":700,"change":70}],["seed-028",{"ts":1793690400000,"items":[{"menuId":"iced-latte","name":"Iced Latte","size":"M","qty":1,"unit":150,"addons":[]},{"menuId":"caramel-milktea","name":"Caramel Milktea","size":"M","qty":1,"unit":150,"addons":[{"id":"pearls","name":"Pearls","price":20}]}],"subtotal":300,"discount":0,"discountLabel":"","total":300,"payment":"Cash","tendered":300,"change":0}],["seed-029",{"ts":1793696220000,"items":[{"menuId":"iced-caramel-macchiato","name":"Iced Caramel Macchiato","size":"M","qty":2,"unit":210,"addons":[{"id":"extra-shot","name":"Extra Shot","price":40}]},{"menuId":"iced-caramel-macchiato","name":"Iced Caramel Macchiato","size":"S","qty":1,"unit":150,"addons":[]},{"menuId":"iced-latte","name":"Iced Latte","size":"S","qty":1,"unit":170,"addons":[{"id":"extra-shot","name":"Extra Shot","price":40}]}],"subtotal":740,"discount":0,"discountLabel":"","total":740,"payment":"GCash"}],["seed-030",{"ts":1793780400000,"items":[{"menuId":"iced-caramel-macchiato","name":"Iced Caramel Macchiato","size":"M","qty":1,"unit":170,"addons":[]},{"menuId":"iced-caramel-macchiato","name":"Iced Caramel Macchiato","size":"S","qty":2,"unit":150,"addons":[]}],"subtotal":470,"discount":0,"discountLabel":"","total":470,"payment":"GCash"}],["seed-031",{"ts":1793793180000,"items":[{"menuId":"iced-latte","name":"Iced Latte","size":"M","qty":1,"unit":150,"addons":[]},{"menuId":"classic-milktea","name":"Classic Milktea","size":"L","qty":1,"unit":160,"addons":[{"id":"pearls","name":"Pearls","price":20}]}],"subtotal":310,"discount":0,"discountLabel":"","total":310,"payment":"Cash","tendered":400,"change":90}],["seed-032",{"ts":1793778420000,"items":[{"menuId":"classic-milktea","name":"Classic Milktea","size":"M","qty":2,"unit":120,"addons":[]},{"menuId":"espresso","name":"Espresso","size":null,"qty":1,"unit":90,"addons":[]}],"subtotal":330,"discount":0,"discountLabel":"","total":330,"payment":"GCash"}],["seed-033",{"ts":1793851020000,"items":[{"menuId":"iced-latte","name":"Iced Latte","size":"M","qty":1,"unit":190,"addons":[{"id":"extra-shot","name":"Extra Shot","price":40}]},{"menuId":"cafe-latte","name":"Cafe Latte","size":"L","qty":1,"unit":160,"addons":[]},{"menuId":"espresso","name":"Espresso","size":null,"qty":1,"unit":130,"addons":[{"id":"extra-shot","name":"Extra Shot","price":40}]}],"subtotal":480,"discount":0,"discountLabel":"","total":480,"payment":"GCash"}],["seed-034",{"ts":1793939160000,"items":[{"menuId":"americano","name":"Americano","size":"L","qty":2,"unit":130,"addons":[]},{"menuId":"iced-caramel-macchiato","name":"Iced Caramel Macchiato","size":"S","qty":1,"unit":190,"addons":[{"id":"extra-shot","name":"Extra Shot","price":40}]},{"menuId":"iced-caramel-macchiato","name":"Iced Caramel Macchiato","size":"M","qty":2,"unit":210,"addons":[{"id":"extra-shot","name":"Extra Shot","price":40}]}],"subtotal":870,"discount":0,"discountLabel":"","total":870,"payment":"GCash"}],["seed-035",{"ts":1793957460000,"items":[{"menuId":"cafe-latte","name":"Cafe Latte","size":"S","qty":1,"unit":120,"addons":[]}],"subtotal":120,"discount":0,"discountLabel":"","total":120,"payment":"Card"}],["seed-036",{"ts":1793947740000,"items":[{"menuId":"iced-oat-latte","name":"Iced Oat Latte","size":"M","qty":1,"unit":170,"addons":[]}],"subtotal":170,"discount":0,"discountLabel":"","total":170,"payment":"Cash","tendered":200,"change":30}],["seed-037",{"ts":1794048480000,"items":[{"menuId":"butter-croissant","name":"Butter Croissant","size":null,"qty":1,"unit":85,"addons":[]},{"menuId":"iced-latte","name":"Iced Latte","size":"S","qty":1,"unit":170,"addons":[{"id":"extra-shot","name":"Extra Shot","price":40}]},{"menuId":"caramel-milktea","name":"Caramel Milktea","size":"L","qty":1,"unit":170,"addons":[{"id":"pearls","name":"Pearls","price":20}]}],"subtotal":425,"discount":0,"discountLabel":"","total":425,"payment":"Cash","tendered":500,"change":75}],["seed-038",{"ts":1794023100000,"items":[{"menuId":"cafe-latte","name":"Cafe Latte","size":"M","qty":1,"unit":180,"addons":[{"id":"extra-shot","name":"Extra Shot","price":40}]}],"subtotal":180,"discount":0,"discountLabel":"","total":180,"payment":"Cash","tendered":200,"change":20}],["seed-039",{"ts":1794015420000,"items":[{"menuId":"iced-caramel-macchiato","name":"Iced Caramel Macchiato","size":"M","qty":1,"unit":170,"addons":[]},{"menuId":"iced-latte","name":"Iced Latte","size":"L","qty":1,"unit":170,"addons":[]},{"menuId":"classic-milktea","name":"Classic Milktea","size":"M","qty":1,"unit":120,"addons":[]}],"subtotal":460,"discount":0,"discountLabel":"","total":460,"payment":"Cash","tendered":500,"change":40}],["seed-040",{"ts":1794106260000,"items":[{"menuId":"americano","name":"Americano","size":"M","qty":2,"unit":110,"addons":[]},{"menuId":"iced-latte","name":"Iced Latte","size":"L","qty":1,"unit":170,"addons":[]}],"subtotal":390,"discount":0,"discountLabel":"","total":390,"payment":"Cash","tendered":400,"change":10}],["seed-041",{"ts":1794126900000,"items":[{"menuId":"iced-caramel-macchiato","name":"Iced Caramel Macchiato","size":"L","qty":1,"unit":190,"addons":[]}],"subtotal":190,"discount":0,"discountLabel":"","total":190,"payment":"Cash","tendered":200,"change":10}],["seed-042",{"ts":1794122880000,"items":[{"menuId":"iced-oat-latte","name":"Iced Oat Latte","size":"L","qty":1,"unit":190,"addons":[]},{"menuId":"classic-milktea","name":"Classic Milktea","size":"M","qty":1,"unit":140,"addons":[{"id":"pearls","name":"Pearls","price":20}]}],"subtotal":330,"discount":0,"discountLabel":"","total":330,"payment":"GCash"}],["seed-043",{"ts":1794222780000,"items":[{"menuId":"classic-milktea","name":"Classic Milktea","size":"S","qty":1,"unit":120,"addons":[{"id":"pearls","name":"Pearls","price":20}]},{"menuId":"cafe-latte","name":"Cafe Latte","size":"M","qty":1,"unit":140,"addons":[]}],"subtotal":260,"discount":0,"discountLabel":"","total":260,"payment":"Card"}],["seed-044",{"ts":1794184140000,"items":[{"menuId":"classic-milktea","name":"Classic Milktea","size":"S","qty":1,"unit":120,"addons":[{"id":"pearls","name":"Pearls","price":20}]},{"menuId":"iced-oat-latte","name":"Iced Oat Latte","size":"S","qty":1,"unit":190,"addons":[{"id":"extra-shot","name":"Extra Shot","price":40}]},{"menuId":"cafe-latte","name":"Cafe Latte","size":"L","qty":1,"unit":200,"addons":[{"id":"extra-shot","name":"Extra Shot","price":40}]}],"subtotal":510,"discount":0,"discountLabel":"","total":510,"payment":"Cash","tendered":600,"change":90}],["seed-045",{"ts":1794216240000,"items":[{"menuId":"americano","name":"Americano","size":"S","qty":2,"unit":90,"addons":[]},{"menuId":"classic-milktea","name":"Classic Milktea","size":"M","qty":1,"unit":120,"addons":[]}],"subtotal":300,"discount":0,"discountLabel":"","total":300,"payment":"Cash","tendered":300,"change":0}],["seed-046",{"ts":1794296100000,"items":[{"menuId":"iced-latte","name":"Iced Latte","size":"M","qty":1,"unit":190,"addons":[{"id":"extra-shot","name":"Extra Shot","price":40}]}],"subtotal":190,"discount":0,"discountLabel":"","total":190,"payment":"GCash"}],["seed-047",{"ts":1794290040000,"items":[{"menuId":"iced-latte","name":"Iced Latte","size":"S","qty":2,"unit":130,"addons":[]},{"menuId":"espresso","name":"Espresso","size":null,"qty":1,"unit":90,"addons":[]},{"menuId":"classic-milktea","name":"Classic Milktea","size":"M","qty":1,"unit":120,"addons":[]}],"subtotal":470,"discount":0,"discountLabel":"","total":470,"payment":"Card"}],["seed-048",{"ts":1794372360000,"items":[{"menuId":"iced-oat-latte","name":"Iced Oat Latte","size":"S","qty":1,"unit":190,"addons":[{"id":"extra-shot","name":"Extra Shot","price":40}]}],"subtotal":190,"discount":0,"discountLabel":"","total":190,"payment":"Card"}],["seed-049",{"ts":1794368220000,"items":[{"menuId":"iced-caramel-macchiato","name":"Iced Caramel Macchiato","size":"L","qty":1,"unit":190,"addons":[]},{"menuId":"americano","name":"Americano","size":"L","qty":1,"unit":130,"addons":[]},{"menuId":"classic-milktea","name":"Classic Milktea","size":"M","qty":1,"unit":140,"addons":[{"id":"pearls","name":"Pearls","price":20}]}],"subtotal":460,"discount":0,"discountLabel":"","total":460,"payment":"Card"}],["seed-050",{"ts":1794380880000,"items":[{"menuId":"cafe-latte","name":"Cafe Latte","size":"M","qty":1,"unit":180,"addons":[{"id":"extra-shot","name":"Extra Shot","price":40}]}],"subtotal":180,"discount":0,"discountLabel":"","total":180,"payment":"Cash","tendered":200,"change":20}],["seed-051",{"ts":1794471900000,"items":[{"menuId":"americano","name":"Americano","size":"L","qty":1,"unit":130,"addons":[]},{"menuId":"butter-croissant","name":"Butter Croissant","size":null,"qty":1,"unit":85,"addons":[]}],"subtotal":215,"discount":0,"discountLabel":"","total":215,"payment":"Card"}],["seed-052",{"ts":1794455820000,"items":[{"menuId":"cafe-latte","name":"Cafe Latte","size":"M","qty":2,"unit":140,"addons":[]}],"subtotal":280,"discount":0,"discountLabel":"","total":280,"payment":"Cash","tendered":300,"change":20}],["seed-053",{"ts":1794549660000,"items":[{"menuId":"espresso","name":"Espresso","size":null,"qty":2,"unit":130,"addons":[{"id":"extra-shot","name":"Extra Shot","price":40}]}],"subtotal":260,"discount":0,"discountLabel":"","total":260,"payment":"GCash"}],["seed-054",{"ts":1794564120000,"items":[{"menuId":"cafe-latte","name":"Cafe Latte","size":"L","qty":1,"unit":160,"addons":[]}],"subtotal":160,"discount":0,"discountLabel":"","total":160,"payment":"GCash"}],["seed-055",{"ts":1794552360000,"items":[{"menuId":"americano","name":"Americano","size":"M","qty":1,"unit":110,"addons":[]},{"menuId":"espresso","name":"Espresso","size":null,"qty":1,"unit":130,"addons":[{"id":"extra-shot","name":"Extra Shot","price":40}]},{"menuId":"iced-caramel-macchiato","name":"Iced Caramel Macchiato","size":"S","qty":1,"unit":150,"addons":[]}],"subtotal":390,"discount":0,"discountLabel":"","total":390,"payment":"GCash"}],["seed-056",{"ts":1794616980000,"items":[{"menuId":"cafe-latte","name":"Cafe Latte","size":"L","qty":1,"unit":160,"addons":[]}],"subtotal":160,"discount":0,"discountLabel":"","total":160,"payment":"GCash"}],["seed-057",{"ts":1794615000000,"items":[{"menuId":"iced-caramel-macchiato","name":"Iced Caramel Macchiato","size":"M","qty":1,"unit":170,"addons":[]}],"subtotal":170,"discount":0,"discountLabel":"","total":170,"payment":"Cash","tendered":200,"change":30}],["seed-058",{"ts":1794702360000,"items":[{"menuId":"classic-milktea","name":"Classic Milktea","size":"M","qty":1,"unit":120,"addons":[]}],"subtotal":120,"discount":0,"discountLabel":"","total":120,"payment":"GCash"}],["seed-059",{"ts":1794804780000,"items":[{"menuId":"americano","name":"Americano","size":"L","qty":1,"unit":130,"addons":[]},{"menuId":"iced-latte","name":"Iced Latte","size":"S","qty":1,"unit":130,"addons":[]}],"subtotal":260,"discount":0,"discountLabel":"","total":260,"payment":"GCash"}],["seed-060",{"ts":1794878280000,"items":[{"menuId":"americano","name":"Americano","size":"M","qty":1,"unit":150,"addons":[{"id":"extra-shot","name":"Extra Shot","price":40}]},{"menuId":"cafe-latte","name":"Cafe Latte","size":"M","qty":1,"unit":140,"addons":[]}],"subtotal":290,"discount":0,"discountLabel":"","total":290,"payment":"Cash","tendered":300,"change":10}],["seed-061",{"ts":1794879060000,"items":[{"menuId":"iced-latte","name":"Iced Latte","size":"L","qty":2,"unit":170,"addons":[]},{"menuId":"iced-latte","name":"Iced Latte","size":"S","qty":1,"unit":130,"addons":[]}],"subtotal":470,"discount":0,"discountLabel":"","total":470,"payment":"Card"}],["seed-062",{"ts":1794961080000,"items":[{"menuId":"iced-latte","name":"Iced Latte","size":"L","qty":1,"unit":170,"addons":[]},{"menuId":"iced-latte","name":"Iced Latte","size":"M","qty":2,"unit":150,"addons":[]}],"subtotal":470,"discount":0,"discountLabel":"","total":470,"payment":"GCash"}],["seed-063",{"ts":1794964680000,"items":[{"menuId":"butter-croissant","name":"Butter Croissant","size":null,"qty":1,"unit":85,"addons":[]},{"menuId":"cafe-latte","name":"Cafe Latte","size":"M","qty":2,"unit":140,"addons":[]}],"subtotal":365,"discount":0,"discountLabel":"","total":365,"payment":"Cash","tendered":400,"change":35}],["seed-064",{"ts":1794967320000,"items":[{"menuId":"classic-milktea","name":"Classic Milktea","size":"L","qty":1,"unit":160,"addons":[{"id":"pearls","name":"Pearls","price":20}]}],"subtotal":160,"discount":0,"discountLabel":"","total":160,"payment":"GCash"}]],"notifications":[["seed-n1",{"invId":"oat","text":"Paubos na: Oat Milk - 2000 ml left","level":"low","ts":1794888000000,"read":false}],["seed-n2",{"invId":"caramel","text":"Paubos na: Caramel Syrup - 420 ml left","level":"low","ts":1794942000000,"read":false}],["seed-n3",{"invId":"croissant","text":"Paubos na: Butter Croissant - 3 pcs left","level":"low","ts":1794956400000,"read":false}]],"staff":[["staff-demo-owner",{"name":"Demo Owner","role":"owner","salt":"demo1","pinHash":"0d74088102733ea925af89e50db07fd04ac46d0faed4d384bfa89e8a3d0fb3d3","active":true,"demoPin":"1234"}],["staff-demo-cashier",{"name":"Demo Cashier","role":"cashier","salt":"demo2","pinHash":"544f6c72a0c89b25c1ea81fa3f345fa9c9356211a785ef4a90eff959fce87c4c","active":true,"demoPin":"0000"}]],"employees":[["emp-demo-1",{"name":"Mark Santos","payType":"regular","position":"Barista","rate":600,"otRate":80,"otUnit":"hour","active":true}],["emp-demo-2",{"name":"Joy Reyes","payType":"regular","position":"Cashier","rate":550,"otRate":70,"otUnit":"hour","active":true}],["emp-demo-3",{"name":"Paolo Cruz","payType":"oncall","position":"Weekend barista","rate":500,"otRate":60,"otUnit":"hour","active":true}]]};
+function buildDemo(){
+  const shift=dayStart()-DEMO.base, o={};
+  ["inventory","menu","staff","employees"].forEach(c=>o[c]=JSON.parse(JSON.stringify(DEMO[c])));
+  o.sales=DEMO.sales.map(([id,s])=>[id,Object.assign({},s,{ts:s.ts+shift})]);
+  o.notifications=DEMO.notifications.map(([id,n])=>[id,Object.assign({},n,{ts:n.ts+shift})]);
+  // time cards for this month, up to yesterday
+  let sd=7;const rnd=()=>(sd=(sd*16807)%2147483647)/2147483647;
+  const now=new Date(), ym=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0"), last=now.getDate()-1;
+  const t=(h,m)=>String(h).padStart(2,"0")+":"+String(m).padStart(2,"0");
+  o.timecards=o.employees.map(([eid,e])=>{const rows={};
+    for(let d=1;d<=last;d++){const wd=new Date(now.getFullYear(),now.getMonth(),d).getDay();
+      if(e.payType==="oncall"?wd!==6&&wd!==0:wd===1)continue;
+      const r={ai:t(7,50+Math.floor(rnd()*10)),ao:t(12,Math.floor(rnd()*5)),pi:t(12,55+Math.floor(rnd()*5)),po:t(18,Math.floor(rnd()*5))};
+      if(rnd()<0.25){r.oi="18:00";r.oo=t(19+Math.floor(rnd()*2),Math.floor(rnd()*4)*15)}
+      if(rnd()<0.06){delete r.pi;delete r.po;delete r.oi;delete r.oo}
+      rows[d]=r}
+    return [eid+"_"+ym,{empId:eid,month:ym,rows}]});
+  o.payroll=[];o.settings=[["pay",{regEnd:"18:00",otRound:15,incomplete:0}]];
+  return o;
+}
+/* ---------- alerts ---------- */
+function alertCheck(id,inv,prev,next){
+  const th=Number(inv.threshold)||0;let level=null,text="";
+  if(next<=0&&prev>0){level="out";text="Ubos na: "+inv.name}
+  else if(next<=th&&prev>th){level="low";text="Paubos na: "+inv.name+" - "+fnum(next)+" "+inv.unit+" left"}
+  if(level)put("notifications",uid(),{invId:id,text,level,ts:Date.now(),read:false});
+}
+function setStock(id,next){
+  const inv=data.inventory.get(id);if(!inv)return;
+  const prev=Number(inv.stock)||0;next=Math.max(0,Math.round(next*100)/100);
+  put("inventory",id,Object.assign({},inv,{stock:next,updated:Date.now()}));
+  alertCheck(id,inv,prev,next);
+}
+
+/* ---------- staff / login ---------- */
+function me(){const s=st.meId&&data.staff.get(st.meId);return s&&s.active!==false?Object.assign({id:st.meId},s):null}
+const isOwner=()=>{const m=me();return !!(m&&m.role==="owner")};
+const canView=v=>isOwner()||CASHIER_VIEWS.includes(v);
+const initials=n=>String(n||"?").trim().split(/\s+/).map(w=>w[0]).slice(0,2).join("").toUpperCase();
+async function hashPin(salt,pin){
+  const txt="kapehan:"+salt+":"+pin;
+  try{const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(txt));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
+  catch(e){let h=5381;for(let i=0;i<txt.length;i++)h=((h<<5)+h+txt.charCodeAt(i))>>>0;return "d"+h.toString(16)}
+}
+function setMe(id){st.meId=id||"";try{id?localStorage.setItem(MEKEY,id):localStorage.removeItem(MEKEY)}catch(e){}st.login={pick:null,pin:"",fails:0,until:0};if(id&&!canView(st.view))location.hash="pos";scheduleRender()}
+function renderLock(){
+  const lock=$("#lock");
+  const ready=mode==="local"||(mode==="db"&&loaded.has("staff"));
+  const staff=list("staff").filter(s=>s.active!==false).sort((a,b)=>(a.role==="owner"?0:1)-(b.role==="owner"?0:1)||a.name.localeCompare(b.name));
+  if(!ready||me()){lock.hidden=true;lock.innerHTML="";return}
+  lock.hidden=false;
+  if(!staff.length){
+    if(lock.dataset.mode==="setup")return; lock.dataset.mode="setup";
+    lock.innerHTML=`<div class="lockbox"><div class="brandmark">Kapehan POS<small>Coffee &amp; Milktea</small></div><div class="panel" style="display:flex;flex-direction:column;gap:12px">
+      <h2>Gumawa ng Owner account</h2><p class="muted" style="margin:0">Ikaw ang Owner: makikita mo lahat, at ikaw ang magdadagdag ng cashiers sa Staff page. Tandaan ang PIN mo.</p>
+      <div class="field"><label for="su-name">Pangalan</label><input type="text" id="su-name" placeholder="hal. Ate Joy"></div>
+      <div class="form2"><div class="field"><label for="su-pin">4-digit PIN</label><input type="password" id="su-pin" inputmode="numeric" maxlength="4" autocomplete="off"></div>
+      <div class="field"><label for="su-pin2">Ulitin ang PIN</label><input type="password" id="su-pin2" inputmode="numeric" maxlength="4" autocomplete="off"></div></div>
+      <button class="btn primary" id="su-go" style="justify-content:center;padding:12px" ${st.readOnly?"disabled":""}>Gumawa at mag-login</button></div></div>`;
+    $("#su-go").onclick=async()=>{const name=$("#su-name").value.trim(),p=$("#su-pin").value,p2=$("#su-pin2").value;
+      if(!name)return toast("Ilagay ang pangalan mo.",true);
+      if(!/^\d{4}$/.test(p))return toast("Ang PIN ay dapat 4 na numero.",true);
+      if(p!==p2)return toast("Hindi magkapareho ang dalawang PIN.",true);
+      const id="staff-"+uid(),salt=uid();put("staff",id,{name,role:"owner",salt,pinHash:await hashPin(salt,p),active:true,created:Date.now()});setMe(id);lock.dataset.mode="";toast("Welcome, "+name+"!")};
+    return;
+  }
+  lock.dataset.mode="login";
+  const L=st.login, who=L.pick&&staff.find(s=>s.id===L.pick);
+  if(!who){
+    lock.innerHTML=`<div class="lockbox"><div class="brandmark">Kapehan POS<small>Coffee &amp; Milktea</small></div><h2>Sino ang naka-duty?</h2>
+      <div class="who">${staff.map(s=>`<button data-pick="${esc(s.id)}"><span class="avatar">${esc(initials(s.name))}</span>${esc(s.name)}<span class="muted" style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.05em">${s.role==="owner"?"Owner":"Cashier"}</span></button>`).join("")}</div></div>`;
+    lock.querySelectorAll("[data-pick]").forEach(b=>b.onclick=()=>{st.login.pick=b.dataset.pick;st.login.pin="";renderLock()});
+    return;
+  }
+  const wait=Math.max(0,Math.ceil((L.until-Date.now())/1000));
+  lock.innerHTML=`<div class="lockbox" style="width:min(320px,100%)"><div style="display:flex;align-items:center;gap:12px"><span class="avatar">${esc(initials(who.name))}</span><div><h2>${esc(who.name)}</h2><span class="muted">${wait?"Subukan ulit sa "+wait+"s":"Ilagay ang PIN mo"}</span></div></div>
+    <div class="dots" id="dots">${[0,1,2,3].map(i=>`<i class="${i<L.pin.length?"on":""}"></i>`).join("")}</div>
+    <div class="pad">${[1,2,3,4,5,6,7,8,9].map(n=>`<button data-k="${n}" ${wait?"disabled":""}>${n}</button>`).join("")}<button data-k="back" aria-label="Bumalik" style="font-size:14px">Bumalik</button><button data-k="0" ${wait?"disabled":""}>0</button><button data-k="del" aria-label="Burahin" style="font-size:18px">⌫</button></div></div>`;
+  if(wait)setTimeout(renderLock,1000);
+  lock.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>pinKey(b.dataset.k));
+}
+async function pinKey(k){
+  const L=st.login;
+  if(k==="back"){L.pick=null;L.pin="";return renderLock()}
+  if(k==="del"){L.pin=L.pin.slice(0,-1);return renderLock()}
+  if(Date.now()<L.until||L.pin.length>=4)return;
+  L.pin+=k;renderLock();
+  if(L.pin.length===4){
+    const s=data.staff.get(L.pick);const ok=s&&(await hashPin(s.salt,L.pin))===s.pinHash;
+    if(ok){setMe(L.pick);toast("Naka-login: "+s.name);return}
+    L.fails++;L.pin="";if(L.fails>=5){L.until=Date.now()+30000;L.fails=0}
+    renderLock();const d=$("#dots");d&&d.classList.add("shake");toast("Mali ang PIN.",true);
+  }
+}
+document.addEventListener("keydown",e=>{if($("#lock").hidden||$("#lock").dataset.mode!=="login"||!st.login.pick)return;
+  if(/^\d$/.test(e.key))pinKey(e.key);else if(e.key==="Backspace")pinKey("del");else if(e.key==="Escape")pinKey("back")});
+
+/* ---------- render loop ---------- */
+let rq=false;
+function scheduleRender(){if(rq)return;rq=true;requestAnimationFrame(()=>{rq=false;render()})}
+function render(){
+  renderLock();
+  const m=me();
+  if(m&&!canView(st.view)){location.hash="pos";return}
+  document.querySelectorAll(".rail a").forEach(a=>{a.setAttribute("aria-current",a.dataset.v===st.view?"page":"false");a.hidden=!canView(a.dataset.v)});
+  const meEl=$("#me");meEl.hidden=!m;
+  if(m)meEl.innerHTML=`<span>${esc(m.name)} <span class="role">${m.role==="owner"?"Owner":"Cashier"}</span></span><button class="btn small" data-act="logout" title="I-lock at palitan ang cashier">Lock</button>`;
+  $("#vtitle").textContent=VIEWS[st.view];
+  const unread=list("notifications").filter(n=>!n.read).length;
+  const b=$("#badge");b.hidden=!unread;b.textContent=unread>99?"99+":unread;
+  if(!$("#npanel").hidden)renderNotif();
+  const v=$("#view");
+  const ae=document.activeElement, aid=ae&&ae.id, ss=ae&&ae.selectionStart;
+  if(mode==="connecting"||(mode==="db"&&loaded.size<COLS.length&&!data.inventory.size&&!data.menu.size)){v.innerHTML='<div class="panel empty">Kinukuha ang data ng shop…</div>';return}
+  v.innerHTML=({dashboard:vDash,pos:vPOS,inventory:vInv,reports:vReports,menu:vMenu,salary:vSalary,staff:vStaff})[st.view]();
+  hideOwnerOnly(v);
+  if(aid){const el=document.getElementById(aid);if(el&&el!==ae){el.focus();try{if(ss!=null)el.setSelectionRange(ss,ss)}catch(e){}}}
+}
+function route(){const h=location.hash.slice(1);st.view=VIEWS[h]?h:"dashboard";scheduleRender();window.scrollTo(0,0)}
+
+/* ---------- sales math ---------- */
+const isAddon=id=>{const m=data.menu.get(id);return m&&m.category==="Add-ons"};
+function salesIn(from,to){return list("sales").filter(s=>s.ts>=from&&s.ts<to)}
+function itemsSold(sales){let n=0;sales.forEach(s=>(s.items||[]).forEach(i=>{if(!isAddon(i.menuId))n+=Number(i.qty)||0}));return n}
+const sum=(a,f)=>a.reduce((x,y)=>x+(Number(f(y))||0),0);
+
+/* ---------- DASHBOARD ---------- */
+function vDash(){
+  const t0=dayStart(), todayS=salesIn(t0,t0+DAY), yS=salesIn(t0-DAY,t0);
+  const rev=sum(todayS,s=>s.total), yrev=sum(yS,s=>s.total);
+  const inv=list("inventory"), low=inv.filter(i=>invStatus(i)!=="ok").sort((a,b)=>(a.stock/(a.threshold||1))-(b.stock/(b.threshold||1)));
+  const diff=yrev?Math.round((rev-yrev)/yrev*100):null;
+  const recent=list("sales").sort((a,b)=>b.ts-a.ts).slice(0,6);
+  const top=rankItems(todayS).slice(0,5);
+  const emptyShop=!inv.length&&!data.menu.size;
+  return `
+  ${emptyShop?`<div class="panel"><h2>Bagong shop?</h2><p class="muted">Mag-add muna ng ingredients sa <a href="#inventory">Inventory</a>, tapos ng drinks at recipe sa <a href="#menu">Menu</a>. Pagkatapos, pwede ka nang mag-benta sa POS.</p></div>`:""}
+  <div class="kpis">
+    <div class="kpi"><span class="label">Benta ngayon</span><span class="v">${peso0(rev)}</span><span class="d">${diff==null?"Walang benta kahapon":(diff>=0?"▲ ":"▼ ")+Math.abs(diff)+"% vs kahapon ("+peso0(yrev)+")"}</span></div>
+    <div class="kpi"><span class="label">Orders</span><span class="v">${todayS.length}</span><span class="d">${todayS.length?"Avg "+peso0(rev/todayS.length)+" / order":"Wala pang order"}</span></div>
+    <div class="kpi"><span class="label">Items sold</span><span class="v">${itemsSold(todayS)}</span><span class="d">Drinks at pastries, ngayong araw</span></div>
+    <button class="kpi ${low.length?"alert":""}" data-act="go" data-to="inventory" data-filter="low"><span class="label">Low stock</span><span class="v">${low.length}</span><span class="d">${low.filter(i=>invStatus(i)==="out").length} ubos na · tingnan sa Inventory →</span></button>
+  </div>
+  <div class="quick">
+    <a class="btn primary" href="#pos">+ Bagong order</a>
+    <button class="btn" data-act="go" data-to="inventory" data-filter="low">Mag-restock</button>
+    <button class="btn" data-act="inv-new">Add ingredient</button>
+    <button class="btn" data-act="menu-new">Add drink</button>
+  </div>
+  <div class="grid2">
+    <div class="panel"><div class="panel-head"><h2>Paubos na</h2><span class="muted">${low.length} item${low.length===1?"":"s"}</span></div>
+      <div class="rows">${low.length?low.map(i=>`<div class="row"><div class="grow"><b>${esc(i.name)}</b><div class="sub num">${fnum(i.stock)} ${esc(i.unit)} natitira · min ${fnum(i.threshold)}</div></div>${statusChip(invStatus(i))}<button class="btn small" data-act="restock" data-id="${esc(i.id)}">Restock</button></div>`).join(""):`<div class="empty">Lahat ng stock ay sapat.</div>`}</div>
+    </div>
+    <div class="panel"><div class="panel-head"><h2>Top ngayon</h2><a href="#reports" class="muted">Reports →</a></div>
+      <div class="rows">${top.length?top.map((r,i)=>`<div class="row"><div class="grow"><b>${esc(r.name)}</b> ${i===0?'<span class="chip best">Best seller</span>':""}<div class="sub">${r.qty} sold</div></div><span class="num">${peso0(r.rev)}</span></div>`).join(""):`<div class="empty">Wala pang benta ngayon.</div>`}</div>
+    </div>
+  </div>
+  <div class="panel"><div class="panel-head"><h2>Latest sales</h2><span class="muted">Huling ${recent.length}</span></div>
+    <div class="rows">${recent.length?recent.map(s=>`<div class="row"><div class="grow"><b>${esc((s.items||[]).map(i=>i.qty+"× "+i.name+(i.size?" ("+i.size+")":"")).join(", "))}</b><div class="sub">${new Date(s.ts).toLocaleString("en-PH",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})} · ${esc(s.payment)}${s.discountLabel?" · "+esc(s.discountLabel):""}${s.cashierName?" · "+esc(s.cashierName):""}</div></div><span class="num">${peso(s.total)}</span></div>`).join(""):`<div class="empty">Wala pang sales.</div>`}</div>
+  </div>`;
+}
+
+/* ---------- POS ---------- */
+function usage(lines){
+  const u={};
+  const add=(m,size,qty)=>(m&&m.recipe||[]).forEach(r=>{if(!r.inv)return;const q=Number(r.qty)*(r.fixed||!size?1:MULT[size])*qty;u[r.inv]=(u[r.inv]||0)+q});
+  lines.forEach(l=>{add(data.menu.get(l.menuId),l.size,l.qty);(l.addons||[]).forEach(a=>add(data.menu.get(a.id),null,l.qty))});
+  return u;
+}
+function shortages(u){return Object.entries(u).map(([id,need])=>{const i=data.inventory.get(id);return{id,need,name:i?i.name:"(deleted item)",have:i?Number(i.stock)||0:0,unit:i?i.unit:""}}).filter(x=>x.have<x.need)}
+function totals(){
+  const sub=sum(st.cart,l=>l.unit*l.qty);let d=0,label="";
+  if(st.disc==="sc"){d=sub*0.2;label="Senior/PWD 20%"}
+  else if(st.disc==="promo"){d=sub*0.1;label="Promo 10%"}
+  else if(st.disc==="custom"){d=Math.min(sub,Math.max(0,Number(st.discCustom)||0));label=d?"Discount "+peso0(d):""}
+  d=Math.round(d*100)/100;
+  return{sub,d,label,total:Math.round((sub-d)*100)/100};
+}
+function vPOS(){
+  const menu=list("menu").filter(m=>m.active!==false);
+  const items=menu.filter(m=>m.category===st.cat).sort((a,b)=>a.name.localeCompare(b.name));
+  const T=totals();
+  const tend=Number(st.tendered)||0;
+  return `<div class="pos">
+   <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
+    <div class="cats" role="group" aria-label="Category">${CATS.map(c=>`<button data-act="cat" data-c="${c}" aria-pressed="${st.cat===c}">${c} <span class="muted">${menu.filter(m=>m.category===c).length}</span></button>`).join("")}</div>
+    <div class="tiles">${items.length?items.map(m=>{const sh=shortages(usage([{menuId:m.id,size:m.sized?"M":null,qty:1,addons:[]}])).length;
+      return `<button class="tile ${sh?"short":""}" data-act="pick" data-id="${esc(m.id)}"><span class="n">${esc(m.name)}</span>${sh?'<span class="chip out">Kulang stock</span>':""}<span class="p">${m.sized?"S/M/L · from ":""}${peso0(fromPrice(m))}</span></button>`}).join(""):`<div class="panel empty" style="grid-column:1/-1">Walang item sa ${esc(st.cat)}. <a href="#menu">Mag-add sa Menu</a>.</div>`}</div>
+   </div>
+   <aside class="ticket" aria-label="Current order">
+    <header><h2>Order</h2>${st.cart.length?'<button class="btn small" data-act="cart-clear">Clear</button>':""}</header>
+    <div class="lines">${st.cart.length?st.cart.map((l,i)=>`<div class="line"><div><b>${esc(l.name)}</b>${l.size?` <span class="muted">(${l.size})</span>`:""}${l.addons.length?`<div class="meta">+ ${esc(l.addons.map(a=>a.name).join(", "))}</div>`:""}<div class="meta num">${peso(l.unit)} each</div></div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px"><span class="num">${peso(l.unit*l.qty)}</span><span class="stepper"><button data-act="qty" data-i="${i}" data-d="-1" aria-label="Bawasan">−</button><span class="num">${l.qty}</span><button data-act="qty" data-i="${i}" data-d="1" aria-label="Dagdagan">+</button></span></div></div>`).join(""):`<div class="empty">Pumili ng drink sa menu.</div>`}</div>
+    <footer>
+      <div class="field"><label for="disc">Discount</label><select id="disc" data-act="disc"><option value="none" ${st.disc==="none"?"selected":""}>Wala</option><option value="sc" ${st.disc==="sc"?"selected":""}>Senior / PWD (20%)</option><option value="promo" ${st.disc==="promo"?"selected":""}>Promo (10%)</option><option value="custom" ${st.disc==="custom"?"selected":""}>Custom amount (₱)</option></select>
+        ${st.disc==="custom"?`<input type="number" id="discAmt" min="0" step="1" placeholder="Halaga sa ₱" value="${esc(st.discCustom)}" data-act="discAmt">`:""}</div>
+      <div class="field"><label>Payment</label><div class="seg" role="group">${PAYS.map(p=>`<button data-act="pay" data-p="${p}" aria-pressed="${st.pay===p}">${p}</button>`).join("")}</div></div>
+      ${st.pay==="Cash"?`<div class="field"><label for="tend">Cash na tinanggap</label><input type="number" id="tend" min="0" step="1" value="${esc(st.tendered)}" data-act="tend" placeholder="0">
+        <div style="display:flex;gap:6px;flex-wrap:wrap">${[["Exact",T.total],["₱200",200],["₱500",500],["₱1000",1000]].map(([l,v])=>`<button class="btn small" data-act="tendq" data-v="${v}">${l}</button>`).join("")}</div></div>`:
+        st.pay==="GCash"?`<div class="field"><label for="gref">GCash reference no. (optional)</label><input type="text" id="gref" value="${esc(st.gref)}" data-act="gref" inputmode="numeric"></div>`:""}
+      <div class="sumrow"><span>Subtotal</span><span class="num">${peso(T.sub)}</span></div>
+      ${T.d?`<div class="sumrow"><span>${esc(T.label)}</span><span class="num">−${peso(T.d)}</span></div>`:""}
+      <div class="sumrow total"><span>Total</span><span class="num">${peso(T.total)}</span></div>
+      ${st.pay==="Cash"&&tend?`<div class="sumrow"><span>Sukli</span><span class="num">${tend>=T.total?peso(tend-T.total):"Kulang ng "+peso(T.total-tend)}</span></div>`:""}
+      <button class="btn primary" style="justify-content:center;padding:12px" data-act="checkout" ${!st.cart.length||st.readOnly?"disabled":""}>Checkout ${st.cart.length?peso(T.total):""}</button>
+    </footer>
+   </aside></div>`;
+}
+function pickItem(id){
+  const m=data.menu.get(id);if(!m)return;
+  const addons=list("menu").filter(a=>a.category==="Add-ons"&&a.active!==false&&a.id!==id);
+  if(!m.sized&&(m.category==="Pastries"||m.category==="Add-ons"||!addons.length)){addToCart({menuId:id,name:m.name,size:null,qty:1,addons:[],unit:priceOf(m)});return}
+  const sel={size:m.sized?"M":null,qty:1,addons:new Set()};
+  const draw=()=>{
+    const unit=priceOf(m,sel.size)+sum([...sel.addons],a=>priceOf(data.menu.get(a)||{}));
+    openModal(`<h2>${esc(m.name)}</h2>
+     ${m.sized?`<div class="field"><label>Size</label><div class="sizes">${SIZES.map(s=>`<button data-s="${s}" aria-pressed="${sel.size===s}"><b>${s}</b><span class="num muted">${peso0(priceOf(m,s))}</span></button>`).join("")}</div></div>`:""}
+     ${addons.length?`<div class="field"><label>Add-ons</label>${addons.map(a=>`<label class="check"><input type="checkbox" data-a="${esc(a.id)}" ${sel.addons.has(a.id)?"checked":""}><span class="grow">${esc(a.name)}</span><span class="num muted">+${peso0(priceOf(a))}</span></label>`).join("")}</div>`:""}
+     <div class="field"><label>Quantity</label><span class="stepper" style="align-self:flex-start"><button data-q="-1" aria-label="Bawasan">−</button><span class="num">${sel.qty}</span><button data-q="1" aria-label="Dagdagan">+</button></span></div>
+     <div class="foot"><button class="btn" data-close>Cancel</button><button class="btn primary" data-add>Add ${peso(unit*sel.qty)}</button></div>`,el=>{
+      el.querySelectorAll("[data-s]").forEach(b=>b.onclick=()=>{sel.size=b.dataset.s;draw()});
+      el.querySelectorAll("[data-a]").forEach(c=>c.onchange=()=>{c.checked?sel.addons.add(c.dataset.a):sel.addons.delete(c.dataset.a);draw()});
+      el.querySelectorAll("[data-q]").forEach(b=>b.onclick=()=>{sel.qty=Math.max(1,sel.qty+Number(b.dataset.q));draw()});
+      el.querySelector("[data-add]").onclick=()=>{closeModal();addToCart({menuId:id,name:m.name,size:sel.size,qty:sel.qty,unit,addons:[...sel.addons].map(a=>{const x=data.menu.get(a);return{id:a,name:x.name,price:priceOf(x)}})})};
+    });
+  };draw();
+}
+function addToCart(l){
+  const key=x=>x.menuId+"|"+x.size+"|"+x.addons.map(a=>a.id).sort().join(",");
+  const ex=st.cart.find(c=>key(c)===key(l));
+  if(ex)ex.qty+=l.qty;else st.cart.push(l);
+  st.override=false;scheduleRender();toast("Na-add: "+l.qty+"× "+l.name+(l.size?" ("+l.size+")":""));
+}
+function checkout(){
+  if(!st.cart.length||st.readOnly)return;
+  const T=totals(), tend=Number(st.tendered)||0;
+  if(st.pay==="Cash"&&tend<T.total){toast("Kulang ang cash na tinanggap. Ilagay ang halaga o pindutin ang Exact.",true);$("#tend")&&$("#tend").focus();return}
+  const u=usage(st.cart), sh=shortages(u);
+  if(sh.length&&!st.override){
+    openModal(`<h2>Kulang ang stock</h2><p class="muted">Base sa recipe, hindi sapat ang mga ito para sa order:</p>
+      <div class="rows">${sh.map(s=>`<div class="row"><div class="grow"><b>${esc(s.name)}</b><div class="sub num">Kailangan ${fnum(s.need)} ${esc(s.unit)}, meron ${fnum(s.have)}</div></div></div>`).join("")}</div>
+      <p class="muted">Kung may stock pa talaga (hindi lang na-update), pwede mong ituloy. Magiging 0 ang stock ng mga ito.</p>
+      <div class="foot"><button class="btn" data-close>Bumalik</button><button class="btn primary" data-go>Ituloy ang checkout</button></div>`,el=>{el.querySelector("[data-go]").onclick=()=>{st.override=true;closeModal();checkout()}});
+    return;
+  }
+  const sale={ts:Date.now(),items:st.cart.map(l=>({menuId:l.menuId,name:l.name,size:l.size,qty:l.qty,unit:l.unit,addons:l.addons})),
+    subtotal:T.sub,discount:T.d,discountLabel:T.label,total:T.total,payment:st.pay};
+  const cashier=me();if(cashier){sale.cashierId=cashier.id;sale.cashierName=cashier.name}
+  if(st.pay==="Cash"){sale.tendered=tend;sale.change=Math.round((tend-T.total)*100)/100}
+  if(st.pay==="GCash"&&st.gref)sale.ref=st.gref;
+  put("sales",uid(),sale);
+  Object.entries(u).forEach(([id,need])=>{const i=data.inventory.get(id);if(i)setStock(id,(Number(i.stock)||0)-need)});
+  st.cart=[];st.tendered="";st.gref="";st.disc="none";st.discCustom="";st.override=false;
+  openModal(`<h2>Bayad na ✓</h2><div class="receipt">
+    ${sale.items.map(i=>`<div class="sumrow"><span>${i.qty}× ${esc(i.name)}${i.size?" ("+i.size+")":""}${i.addons.length?" +"+esc(i.addons.map(a=>a.name).join(", ")):""}</span><span>${peso(i.unit*i.qty)}</span></div>`).join("")}
+    ${sale.discount?`<div class="sumrow"><span>${esc(sale.discountLabel)}</span><span>−${peso(sale.discount)}</span></div>`:""}
+    <div class="sumrow" style="font-weight:700;border-top:1px dashed var(--line);padding-top:6px"><span>TOTAL · ${esc(sale.payment)}</span><span>${peso(sale.total)}</span></div>
+    ${sale.payment==="Cash"?`<div class="sumrow"><span>Cash</span><span>${peso(sale.tendered)}</span></div><div class="sumrow" style="font-weight:700"><span>Sukli</span><span>${peso(sale.change)}</span></div>`:""}
+    ${sale.ref?`<div class="sumrow"><span>GCash ref</span><span>${esc(sale.ref)}</span></div>`:""}
+   </div><p class="muted" style="margin:0">Na-record ang sale at nabawasan na ang ingredients sa Inventory.</p>
+   <div class="foot"><button class="btn primary" data-close>Bagong order</button></div>`);
+}
+
+/* ---------- INVENTORY ---------- */
+function vInv(){
+  const all=list("inventory").sort((a,b)=>a.name.localeCompare(b.name));
+  const q=st.invQ.toLowerCase();
+  const rows=all.filter(i=>(!q||i.name.toLowerCase().includes(q))&&(st.invF==="all"||(st.invF==="low"?invStatus(i)!=="ok":invStatus(i)===st.invF)));
+  const cnt=k=>all.filter(i=>k==="low"?invStatus(i)!=="ok":invStatus(i)===k).length;
+  return `<div class="toolbar">
+    <input type="search" id="invQ" placeholder="Hanapin ang ingredient…" value="${esc(st.invQ)}" data-act="invQ" style="flex:1;min-width:160px;max-width:320px" aria-label="Search">
+    <div class="seg" role="group" aria-label="Filter">${[["all","Lahat "+all.length],["low","Low "+cnt("low")],["out","Ubos "+cnt("out")]].map(([k,l])=>`<button data-act="invF" data-f="${k}" aria-pressed="${st.invF===k}">${l}</button>`).join("")}</div>
+    <span class="grow"></span><button class="btn primary" data-act="inv-new" ${st.readOnly?"disabled":""}>+ Add item</button></div>
+  <div class="tablewrap"><table><thead><tr><th>Item</th><th class="r">Stock</th><th>Level</th><th class="r">Min</th><th>Status</th><th class="r">Actions</th></tr></thead><tbody>
+  ${rows.length?rows.map(i=>{const s=invStatus(i);const pct=Math.min(100,(Number(i.stock)||0)/Math.max(1,(Number(i.threshold)||1)*3)*100);
+   return `<tr class="${s==="ok"?"":s}"><td><b>${esc(i.name)}</b></td><td class="r num">${fnum(i.stock)} ${esc(i.unit)}</td><td><div class="meter"><i style="width:${pct}%"></i></div></td><td class="r num muted">${fnum(i.threshold)} ${esc(i.unit)}</td><td>${statusChip(s)}</td>
+   <td><div class="actions"><button class="btn small primary" data-act="restock" data-id="${esc(i.id)}" ${st.readOnly?"disabled":""}>Restock</button><button class="btn small" data-act="inv-edit" data-id="${esc(i.id)}" ${st.readOnly?"disabled":""}>Edit</button><button class="btn small danger" data-act="inv-del" data-id="${esc(i.id)}" ${st.readOnly?"disabled":""}>Delete</button></div></td></tr>`}).join("")
+   :`<tr><td colspan="6" class="empty">${all.length?"Walang tumugma sa filter.":"Wala pang ingredients. Pindutin ang + Add item para magsimula (hal. Espresso beans, Fresh milk, Cups)."}</td></tr>`}
+  </tbody></table></div>`;
+}
+function invForm(id){
+  const i=id?data.inventory.get(id):{name:"",unit:"g",stock:0,threshold:0};
+  openModal(`<h2>${id?"Edit item":"Bagong ingredient"}</h2>
+   <div class="field"><label for="f-name">Pangalan</label><input type="text" id="f-name" value="${esc(i.name)}" placeholder="hal. Oat Milk"></div>
+   <div class="form2"><div class="field"><label for="f-unit">Unit</label><select id="f-unit">${UNITS.concat(UNITS.includes(i.unit)?[]:[i.unit]).map(u=>`<option ${u===i.unit?"selected":""}>${esc(u)}</option>`).join("")}</select></div>
+   <div class="field"><label for="f-stock">Current stock</label><input type="number" id="f-stock" min="0" step="any" value="${esc(i.stock)}"></div>
+   <div class="field"><label for="f-th">Min threshold (alert)</label><input type="number" id="f-th" min="0" step="any" value="${esc(i.threshold)}"></div></div>
+   <p class="muted" style="margin:0">Magbibigay ng notification kapag ang stock ay umabot o bumaba sa min threshold.</p>
+   <div class="foot"><button class="btn" data-close>Cancel</button><button class="btn primary" data-save>Save</button></div>`,el=>{
+    el.querySelector("#f-name").focus();
+    el.querySelector("[data-save]").onclick=()=>{
+      const name=el.querySelector("#f-name").value.trim();if(!name){toast("Lagyan ng pangalan ang item.",true);return}
+      const body={name,unit:el.querySelector("#f-unit").value,stock:Math.max(0,Number(el.querySelector("#f-stock").value)||0),threshold:Math.max(0,Number(el.querySelector("#f-th").value)||0),updated:Date.now()};
+      const key=id||name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)+"-"+uid().slice(-4);
+      const prevStock=id?Number(i.stock)||0:Infinity, prevTh=id?Number(i.threshold)||0:-1;
+      put("inventory",key,body);
+      // alert if this edit puts it at/below threshold (and it wasn't already)
+      const wasLow=prevStock<=prevTh; if(!wasLow)alertCheck(key,body,id?prevStock:Number.MAX_VALUE,body.stock);
+      closeModal();toast(id?"Na-save ang "+name:"Na-add ang "+name);
+    };
+  });
+}
+function restockForm(id){
+  const i=data.inventory.get(id);if(!i)return;
+  openModal(`<h2>Restock: ${esc(i.name)}</h2><p class="muted" style="margin:0">Current: <span class="num">${fnum(i.stock)} ${esc(i.unit)}</span> · min ${fnum(i.threshold)} ${esc(i.unit)}</p>
+   <div class="field"><label for="f-add">Idadagdag (${esc(i.unit)})</label><input type="number" id="f-add" min="0" step="any" placeholder="0"></div>
+   <div style="display:flex;gap:6px;flex-wrap:wrap">${[1,2,5,10].map(x=>{const v=Math.max(1,Math.round((Number(i.threshold)||10)*x/2));return `<button class="btn small" data-q="${v}">+${fnum(v)}</button>`}).join("")}</div>
+   <div class="foot"><button class="btn" data-close>Cancel</button><button class="btn primary" data-save>Restock</button></div>`,el=>{
+    const f=el.querySelector("#f-add");f.focus();
+    el.querySelectorAll("[data-q]").forEach(b=>b.onclick=()=>{f.value=(Number(f.value)||0)+Number(b.dataset.q)});
+    el.querySelector("[data-save]").onclick=()=>{const v=Number(f.value)||0;if(v<=0){toast("Ilagay kung ilan ang idadagdag.",true);return}
+      setStock(id,(Number(i.stock)||0)+v);
+      // mark this item's alerts as read once restocked above threshold
+      if((Number(i.stock)||0)+v>Number(i.threshold||0))list("notifications").filter(n=>n.invId===id&&!n.read).forEach(n=>put("notifications",n.id,Object.assign({},data.notifications.get(n.id),{read:true})));
+      closeModal();toast("Na-restock: "+i.name+" +"+fnum(v)+" "+i.unit)};
+  });
+}
+function invDelete(id){
+  const i=data.inventory.get(id);if(!i)return;
+  const used=list("menu").filter(m=>(m.recipe||[]).some(r=>r.inv===id));
+  openModal(`<h2>I-delete ang ${esc(i.name)}?</h2>
+   ${used.length?`<p>Ginagamit ito sa recipe ng: <b>${esc(used.map(m=>m.name).join(", "))}</b>. Hindi na ito mababawasan kapag nabenta ang mga iyon.</p>`:""}
+   <p class="muted">Hindi na ito maibabalik.</p>
+   <div class="foot"><button class="btn" data-close>Cancel</button><button class="btn danger" data-del>Delete</button></div>`,el=>{
+    el.querySelector("[data-del]").onclick=()=>{del("inventory",id);closeModal();toast("Na-delete ang "+i.name)}});
+}
+
+/* ---------- REPORTS ---------- */
+function rankItems(sales){
+  const m={};
+  sales.forEach(s=>(s.items||[]).forEach(i=>{if(isAddon(i.menuId))return;const k=i.menuId;m[k]=m[k]||{id:k,name:i.name,qty:0,rev:0};m[k].qty+=Number(i.qty)||0;m[k].rev+=(Number(i.unit)||0)*(Number(i.qty)||0)}));
+  return Object.values(m).sort((a,b)=>b.qty-a.qty||b.rev-a.rev);
+}
+function periodRange(){
+  const t0=dayStart();
+  if(st.period==="daily")return{from:t0,to:t0+DAY,label:"Ngayong araw"};
+  if(st.period==="weekly")return{from:t0-6*DAY,to:t0+DAY,label:"Huling 7 araw"};
+  return{from:t0-29*DAY,to:t0+DAY,label:"Huling 30 araw"};
+}
+function buckets(sales,R){
+  if(st.period==="daily"){const b=[];for(let h=6;h<=22;h++)b.push({k:h,label:(h%12||12)+(h<12?"a":"p"),v:0});
+    sales.forEach(s=>{const h=new Date(s.ts).getHours();const x=b.find(y=>y.k===h)||(h<6?b[0]:b[b.length-1]);x.v+=s.total});return b}
+  const n=Math.round((R.to-R.from)/DAY),b=[];
+  for(let i=0;i<n;i++){const d=new Date(R.from+i*DAY+DAY/2);b.push({k:dayStart(d.getTime()),label:st.period==="weekly"?d.toLocaleDateString("en-PH",{weekday:"short"}):(d.getDate()),v:0})}
+  sales.forEach(s=>{const x=b.find(y=>y.k===dayStart(s.ts));if(x)x.v+=s.total});return b;
+}
+function barChart(b){
+  const W=640,H=220,L=48,B=26,T=14,max=Math.max(1,...b.map(x=>x.v));
+  const step=Math.pow(10,Math.floor(Math.log10(max)));const nice=[1,2,2.5,5,10].map(f=>f*step).find(v=>max/v<=5)||step*10;
+  const top=Math.ceil(max/nice)*nice, y=v=>T+(H-T-B)*(1-v/top), bw=(W-L-8)/b.length;
+  let g="";for(let v=0;v<=top+1e-9;v+=nice)g+=`<line x1="${L}" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="var(--muted)" font-family="IBM Plex Mono,monospace">${v>=1000?(v/1000)+"k":v}</text>`;
+  const every=b.length>16?5:b.length>10?2:1, mi=b.reduce((a,x,i)=>x.v>b[a].v?i:a,0);
+  b.forEach((x,i)=>{const h=H-B-y(x.v),bx=L+4+i*bw;g+=`<rect x="${bx+bw*0.15}" y="${y(x.v)}" width="${bw*0.7}" height="${Math.max(0,h)}" rx="3" fill="${i===mi&&x.v?"var(--stool)":"var(--accent)"}"><title>${esc(x.label)}: ${peso0(x.v)}</title></rect>`;
+    if(i%every===0||i===b.length-1)g+=`<text x="${bx+bw/2}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--muted)">${esc(x.label)}</text>`});
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Revenue chart">${g}</svg>`;
+}
+function vReports(){
+  const R=periodRange(), sales=salesIn(R.from,R.to), rank=rankItems(sales);
+  const rev=sum(sales,s=>s.total), sorted=rank.slice().sort((a,b)=>st.rankBy==="qty"?b.qty-a.qty||b.rev-a.rev:b.rev-a.rev);
+  const maxV=Math.max(1,...sorted.map(r=>st.rankBy==="qty"?r.qty:r.rev));
+  const best=rank[0];
+  const sold=new Map(rank.map(r=>[r.id,r]));
+  const slow=list("menu").filter(m=>m.category!=="Add-ons"&&m.active!==false).map(m=>sold.get(m.id)||{id:m.id,name:m.name,qty:0,rev:0}).sort((a,b)=>a.qty-b.qty||a.rev-b.rev).slice(0,4);
+  const byPay=PAYS.map(p=>[p,sum(sales.filter(s=>s.payment===p),s=>s.total)]);
+  return `<div class="toolbar"><div class="seg" role="group" aria-label="Period">${[["daily","Daily"],["weekly","Weekly"],["monthly","Monthly"]].map(([k,l])=>`<button data-act="period" data-p="${k}" aria-pressed="${st.period===k}">${l}</button>`).join("")}</div><span class="muted">${R.label}</span></div>
+  <div class="kpis">
+    <div class="kpi"><span class="label">Revenue</span><span class="v">${peso0(rev)}</span><span class="d">Net of discounts</span></div>
+    <div class="kpi"><span class="label">Orders</span><span class="v">${sales.length}</span><span class="d">${sales.length?"Avg "+peso0(rev/sales.length):"—"}</span></div>
+    <div class="kpi"><span class="label">Items sold</span><span class="v">${itemsSold(sales)}</span><span class="d">Hindi kasama ang add-ons</span></div>
+    <div class="kpi"><span class="label">Best seller</span><span class="v" style="font-size:20px">${best?esc(best.name):"—"}</span><span class="d">${best?best.qty+" sold · "+peso0(best.rev):"Wala pang benta"}</span></div>
+  </div>
+  <div class="panel chart"><div class="panel-head"><h2>Revenue ${st.period==="daily"?"per oras":"per araw"}</h2><span class="muted">${byPay.map(([p,v])=>p+" "+peso0(v)).join(" · ")}</span></div>${barChart(buckets(sales,R))}</div>
+  <div class="grid2">
+   <div class="panel"><div class="panel-head"><h2>Best sellers</h2><div class="seg" role="group" aria-label="Rank by"><button data-act="rankBy" data-r="qty" aria-pressed="${st.rankBy==="qty"}">Qty</button><button data-act="rankBy" data-r="rev" aria-pressed="${st.rankBy==="rev"}">Revenue</button></div></div>
+    <div>${sorted.length?sorted.map((r,i)=>`<div class="rank"><span class="rk">${i+1}</span><div><b>${esc(r.name)}</b> ${i===0?'<span class="chip best">Best seller</span>':""}</div><div class="num" style="text-align:right">${st.rankBy==="qty"?r.qty+" sold":peso0(r.rev)}<div class="muted" style="font-size:12px">${st.rankBy==="qty"?peso0(r.rev):r.qty+" sold"}</div></div><div class="bar"><i style="width:${(st.rankBy==="qty"?r.qty:r.rev)/maxV*100}%"></i></div></div>`).join(""):`<div class="empty">Walang benta sa period na ito.</div>`}</div></div>
+   <div class="panel"><div class="panel-head"><h2>Hindi masyadong mabenta</h2></div>
+    <div class="rows">${slow.length?slow.map(r=>`<div class="row"><div class="grow"><b>${esc(r.name)}</b><div class="sub">${r.qty?r.qty+" sold · "+peso0(r.rev):"Walang benta sa period na ito"}</div></div>${r.qty?"":'<span class="chip low">0 sold</span>'}</div>`).join(""):`<div class="empty">Wala pang menu items.</div>`}</div>
+    <p class="muted" style="font-size:12px;margin:12px 0 0">Tip: i-promo o i-bundle ang mga ito, o tanggalin sa menu kung matagal nang mahina.</p></div>
+  </div>
+  ${byCashier(sales)}`;
+}
+function byCashier(sales){
+  const m={};sales.forEach(s=>{const k=s.cashierId||"none";m[k]=m[k]||{name:s.cashierId?(data.staff.get(s.cashierId)||{}).name||s.cashierName||"(dating staff)":"Walang naka-record",n:0,rev:0};m[k].n++;m[k].rev+=Number(s.total)||0});
+  const rows=Object.values(m).sort((a,b)=>b.rev-a.rev);
+  return `<div class="panel"><div class="panel-head"><h2>Benta per cashier</h2><span class="muted">Base sa naka-login nang mag-checkout</span></div>
+   <div class="rows">${rows.length?rows.map(r=>`<div class="row"><span class="avatar" style="width:32px;height:32px;font-size:13px">${esc(initials(r.name))}</span><div class="grow"><b>${esc(r.name)}</b><div class="sub">${r.n} order${r.n===1?"":"s"}</div></div><span class="num">${peso0(r.rev)}</span></div>`).join(""):`<div class="empty">Walang benta sa period na ito.</div>`}</div></div>`;
+}
+
+/* ---------- STAFF ---------- */
+function vStaff(){
+  const staff=list("staff").sort((a,b)=>(a.active===false?1:0)-(b.active===false?1:0)||(a.role==="owner"?0:1)-(b.role==="owner"?0:1)||a.name.localeCompare(b.name));
+  const t0=dayStart(),today=salesIn(t0,t0+DAY);
+  return `<div class="toolbar"><p class="muted" style="margin:0;max-width:62ch">Bawat staff ay may sariling 4-digit PIN. Ang Cashier ay may access lang sa Dashboard, POS at Inventory (pang-restock lang). Ang Owner ay may access sa lahat.</p><span class="grow"></span><button class="btn primary" data-act="staff-new">+ Add staff</button></div>
+  <div class="tablewrap"><table><thead><tr><th>Pangalan</th><th>Role</th><th>Status</th><th class="r">Orders ngayon</th><th class="r">Benta ngayon</th><th class="r">Actions</th></tr></thead><tbody>
+  ${staff.map(s=>{const mine=today.filter(x=>x.cashierId===s.id);return `<tr><td><div style="display:flex;align-items:center;gap:10px"><span class="avatar" style="width:32px;height:32px;font-size:13px">${esc(initials(s.name))}</span><b>${esc(s.name)}</b>${s.id===st.meId?' <span class="muted">(ikaw)</span>':""}</div></td>
+   <td>${s.role==="owner"?'<span class="chip best">Owner</span>':'<span class="chip ok">Cashier</span>'}</td><td>${s.active===false?'<span class="chip out">Disabled</span>':'<span class="chip ok">Active</span>'}</td>
+   <td class="r num">${mine.length}</td><td class="r num">${peso0(sum(mine,x=>x.total))}</td>
+   <td><div class="actions"><button class="btn small" data-act="staff-edit" data-id="${esc(s.id)}">Edit / PIN</button>${s.id===st.meId?"":`<button class="btn small" data-act="staff-toggle" data-id="${esc(s.id)}">${s.active===false?"Enable":"Disable"}</button><button class="btn small danger" data-act="staff-del" data-id="${esc(s.id)}">Delete</button>`}</div></td></tr>`}).join("")}
+  </tbody></table></div>`;
+}
+const activeOwners=()=>list("staff").filter(s=>s.role==="owner"&&s.active!==false);
+function staffForm(id){
+  const s=id?data.staff.get(id):{name:"",role:"cashier"};
+  openModal(`<h2>${id?"Edit "+esc(s.name):"Bagong staff"}</h2>
+   <div class="field"><label for="sf-name">Pangalan</label><input type="text" id="sf-name" value="${esc(s.name)}" placeholder="hal. Mark"></div>
+   <div class="field"><label for="sf-role">Role</label><select id="sf-role"><option value="cashier" ${s.role!=="owner"?"selected":""}>Cashier: Dashboard, POS, restock</option><option value="owner" ${s.role==="owner"?"selected":""}>Owner: lahat ng access</option></select></div>
+   <div class="form2"><div class="field"><label for="sf-pin">${id?"Bagong PIN (iwanang blangko kung walang palit)":"4-digit PIN"}</label><input type="password" id="sf-pin" inputmode="numeric" maxlength="4" autocomplete="off"></div>
+   <div class="field"><label for="sf-pin2">Ulitin ang PIN</label><input type="password" id="sf-pin2" inputmode="numeric" maxlength="4" autocomplete="off"></div></div>
+   <div class="foot"><button class="btn" data-close>Cancel</button><button class="btn primary" data-save>Save</button></div>`,el=>{
+    el.querySelector("#sf-name").focus();
+    el.querySelector("[data-save]").onclick=async()=>{
+      const name=el.querySelector("#sf-name").value.trim(),role=el.querySelector("#sf-role").value,p=el.querySelector("#sf-pin").value,p2=el.querySelector("#sf-pin2").value;
+      if(!name)return toast("Ilagay ang pangalan.",true);
+      if((!id||p)&&!/^\d{4}$/.test(p))return toast("Ang PIN ay dapat 4 na numero.",true);
+      if(p!==p2)return toast("Hindi magkapareho ang dalawang PIN.",true);
+      if(id&&s.role==="owner"&&role!=="owner"&&activeOwners().length<=1)return toast("Kailangan ng kahit isang active na Owner.",true);
+      const body=Object.assign({},s,{name,role,active:s.active!==false});delete body.id;
+      if(p){body.salt=uid();body.pinHash=await hashPin(body.salt,p)}
+      put("staff",id||"staff-"+uid(),body);closeModal();toast(id?"Na-save ang "+name:"Na-add si "+name);
+    };
+  });
+}
+function staffToggle(id){const s=data.staff.get(id);if(!s)return;
+  if(s.active!==false&&s.role==="owner"&&activeOwners().length<=1)return toast("Kailangan ng kahit isang active na Owner.",true);
+  put("staff",id,Object.assign({},s,{active:s.active===false}));toast((s.active===false?"Na-enable si ":"Na-disable si ")+s.name)}
+function staffDelete(id){const s=data.staff.get(id);if(!s)return;
+  if(s.role==="owner"&&activeOwners().length<=1&&s.active!==false)return toast("Kailangan ng kahit isang active na Owner.",true);
+  openModal(`<h2>I-delete si ${esc(s.name)}?</h2><p class="muted">Hindi na siya makakapag-login. Mananatili ang pangalan niya sa mga lumang sales. Kung pansamantala lang, i-Disable na lang.</p>
+  <div class="foot"><button class="btn" data-close>Cancel</button><button class="btn danger" data-del>Delete</button></div>`,el=>{el.querySelector("[data-del]").onclick=()=>{del("staff",id);closeModal();toast("Na-delete si "+s.name)}})}
+
+/* ---------- MENU ---------- */
+function vMenu(){
+  const menu=list("menu");
+  return `<div class="toolbar"><p class="muted" style="margin:0;max-width:62ch">Bawat drink ay may recipe. Kapag nabenta sa POS, ang mismong ingredients ang mababawasan sa Inventory. Sa S at L, naka-scale ang dami (×0.75 at ×1.25) maliban sa naka-check na "fixed".</p><span class="grow"></span><button class="btn primary" data-act="menu-new" ${st.readOnly?"disabled":""}>+ Add drink / item</button></div>
+  ${CATS.map(c=>{const items=menu.filter(m=>m.category===c).sort((a,b)=>a.name.localeCompare(b.name));if(!items.length)return"";
+    return `<div><div class="label" style="margin-bottom:8px">${c} · ${items.length}</div><div class="mcards">${items.map(m=>`<div class="mcard">
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><h2>${esc(m.name)}</h2>${m.active===false?'<span class="chip low">Hidden</span>':""}</div>
+      <div class="num muted">${m.sized?SIZES.map(s=>s+" "+peso0(priceOf(m,s))).join(" · "):peso0(priceOf(m))}</div>
+      <ul>${(m.recipe||[]).map(r=>{const i=data.inventory.get(r.inv);return `<li>${fnum(r.qty)} ${esc(i?i.unit:"")} ${esc(i?i.name:"(deleted item)")}${r.fixed&&m.sized?" · fixed":""}</li>`}).join("")||"<li>Walang recipe</li>"}</ul>
+      <div style="display:flex;gap:6px;margin-top:auto"><button class="btn small" data-act="menu-edit" data-id="${esc(m.id)}" ${st.readOnly?"disabled":""}>Edit</button><button class="btn small danger" data-act="menu-del" data-id="${esc(m.id)}" ${st.readOnly?"disabled":""}>Delete</button></div></div>`).join("")}</div></div>`}).join("")||`<div class="panel empty">Wala pang menu. Pindutin ang + Add drink para magsimula.</div>`}`;
+}
+function menuForm(id){
+  const src=id?data.menu.get(id):{name:"",category:st.cat||"Espresso",sized:true,prices:{S:0,M:0,L:0},price:0,recipe:[],active:true};
+  const m=JSON.parse(JSON.stringify(src));m.recipe=m.recipe||[];m.prices=m.prices||{S:0,M:0,L:0};
+  const inv=list("inventory").sort((a,b)=>a.name.localeCompare(b.name));
+  const draw=()=>{openModal(`<h2>${id?"Edit "+esc(src.name):"Bagong item"}</h2>
+   <div class="form2"><div class="field"><label for="m-name">Pangalan</label><input type="text" id="m-name" value="${esc(m.name)}" placeholder="hal. Iced Latte"></div>
+    <div class="field"><label for="m-cat">Category</label><select id="m-cat">${CATS.map(c=>`<option ${c===m.category?"selected":""}>${c}</option>`).join("")}</select></div></div>
+   <label class="check"><input type="checkbox" id="m-sized" ${m.sized?"checked":""}><span class="grow">May sizes (S / M / L)</span></label>
+   ${m.sized?`<div class="sizes">${SIZES.map(s=>`<div class="field"><label for="m-p${s}">${s} price ₱</label><input type="number" id="m-p${s}" min="0" step="any" value="${esc(m.prices[s])}"></div>`).join("")}</div>`
+     :`<div class="field"><label for="m-price">Price ₱</label><input type="number" id="m-price" min="0" step="any" value="${esc(m.price)}"></div>`}
+   <div class="field"><label>Recipe ${m.sized?"(dami para sa M)":"(per order)"}</label>
+    ${m.recipe.map((r,i)=>`<div class="recipe-line"><select data-ri="${i}" aria-label="Ingredient"><option value="">Pumili…</option>${inv.map(x=>`<option value="${esc(x.id)}" ${x.id===r.inv?"selected":""}>${esc(x.name)} (${esc(x.unit)})</option>`).join("")}</select>
+      <input type="number" data-rq="${i}" min="0" step="any" value="${esc(r.qty)}" aria-label="Dami">
+      ${m.sized?`<label title="Hindi nagbabago kahit iba ang size" style="font-size:12px;display:flex;gap:4px;align-items:center"><input type="checkbox" data-rf="${i}" ${r.fixed?"checked":""}>fixed</label>`:"<span></span>"}
+      <button class="btn small" data-rx="${i}" aria-label="Tanggalin">✕</button></div>`).join("")||'<div class="muted">Wala pang ingredients.</div>'}
+    <button class="btn small" data-radd style="align-self:flex-start" ${inv.length?"":"disabled"}>+ Ingredient</button>
+    ${inv.length?"":'<span class="muted">Mag-add muna ng ingredients sa Inventory.</span>'}</div>
+   <label class="check"><input type="checkbox" id="m-active" ${m.active!==false?"checked":""}><span class="grow">Ipakita sa POS</span></label>
+   <div class="foot"><button class="btn" data-close>Cancel</button><button class="btn primary" data-save>Save</button></div>`,el=>{
+    const sync=()=>{m.name=el.querySelector("#m-name").value;m.category=el.querySelector("#m-cat").value;m.sized=el.querySelector("#m-sized").checked;m.active=el.querySelector("#m-active").checked;
+      SIZES.forEach(s=>{const f=el.querySelector("#m-p"+s);if(f)m.prices[s]=Number(f.value)||0});const p=el.querySelector("#m-price");if(p)m.price=Number(p.value)||0;
+      el.querySelectorAll("[data-ri]").forEach(s=>m.recipe[s.dataset.ri].inv=s.value);el.querySelectorAll("[data-rq]").forEach(s=>m.recipe[s.dataset.rq].qty=Number(s.value)||0);el.querySelectorAll("[data-rf]").forEach(s=>m.recipe[s.dataset.rf].fixed=s.checked)};
+    el.querySelector("#m-sized").onchange=()=>{sync();if(!m.sized&&!m.price)m.price=m.prices.M||0;if(m.sized&&!m.prices.M)m.prices.M=m.price||0;draw()};
+    el.querySelector("[data-radd]").onclick=()=>{sync();m.recipe.push({inv:"",qty:0,fixed:false});draw()};
+    el.querySelectorAll("[data-rx]").forEach(b=>b.onclick=()=>{sync();m.recipe.splice(Number(b.dataset.rx),1);draw()});
+    el.querySelector("[data-save]").onclick=()=>{sync();
+      if(!m.name.trim()){toast("Lagyan ng pangalan ang item.",true);return}
+      if(m.sized?!SIZES.some(s=>m.prices[s]>0):!(m.price>0)){toast("Lagyan ng presyo.",true);return}
+      const body={name:m.name.trim(),category:m.category,sized:m.sized,active:m.active,recipe:m.recipe.filter(r=>r.inv&&r.qty>0).map(r=>({inv:r.inv,qty:r.qty,fixed:!!r.fixed}))};
+      if(m.sized)body.prices={S:m.prices.S,M:m.prices.M,L:m.prices.L};else body.price=m.price;
+      put("menu",id||body.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)+"-"+uid().slice(-4),body);closeModal();toast("Na-save ang "+body.name)};
+  });
+  if(!id)setTimeout(()=>{const f=$("#m-name");f&&f.focus()},0)};
+  draw();
+}
+function menuDelete(id){const m=data.menu.get(id);if(!m)return;
+  openModal(`<h2>I-delete ang ${esc(m.name)}?</h2><p class="muted">Mawawala ito sa POS at Menu. Ang mga lumang sales ay mananatili sa Reports. Hindi na ito maibabalik; kung gusto mo lang itago, i-uncheck ang "Ipakita sa POS" sa Edit.</p>
+  <div class="foot"><button class="btn" data-close>Cancel</button><button class="btn danger" data-del>Delete</button></div>`,el=>{el.querySelector("[data-del]").onclick=()=>{del("menu",id);closeModal();toast("Na-delete ang "+m.name)}})}
+
+/* ---------- SALARY (Owner only, same flow as Threadix payroll) ---------- */
+const MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
+const ymNow=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")};
+const sal={tab:"cards",month:ymNow(),half:"all",open:null,adj:{},by:"week",emp:"all",admin:null};
+const TC_COLS=[["ai","AM in"],["ao","AM out"],["pi","PM in"],["po","PM out"],["oi","OT in"],["oo","OT out"]];
+const PAYTYPES={regular:"Regular (kada araw)",oncall:"On-call (kapag tinawag)"};
+const paySet=()=>Object.assign({regEnd:"18:00",otRound:0,incomplete:0},data.settings.get("pay")||{});
+const dim=ym=>new Date(+ym.slice(0,4),+ym.slice(5,7),0).getDate();
+const fmtT=m=>String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0");
+const monthLabel=ym=>MONTHS[+ym.slice(5,7)-1]+" "+ym.slice(0,4);
+const periodLabel=(ym,half)=>monthLabel(ym)+(half==="1-15"?" (1st–15th)":half==="16-end"?" (16th–end)":"");
+const hm=h=>{const m=Math.round(h*60),a=Math.floor(m/60),b=m%60;return (a?a+" h":"")+(a&&b?" ":"")+(b||!a?b+" min":"")};
+const empList=()=>list("employees").sort((a,b)=>a.name.localeCompare(b.name));
+function parseT(s){
+  s=String(s==null?"":s).trim().toLowerCase().replace(/\s+/g,"");if(!s)return null;
+  const ap=/([ap])\.?m?\.?$/.exec(s);let t=s.replace(/[^0-9:.]/g,""),h,mi;
+  if(/[:.]/.test(t)){[h,mi]=t.split(/[:.]/).map(Number)}
+  else if(/^\d{3,4}$/.test(t)){t=t.padStart(4,"0");h=+t.slice(0,2);mi=+t.slice(2)}
+  else if(/^\d{1,2}$/.test(t)){h=+t;mi=0}else return null;
+  if(isNaN(h)||isNaN(mi))return null;
+  if(ap){if(h>12)return null;if(h===12)h=0;if(ap[1]==="p")h+=12}
+  if(h>23||mi>59)return null;return h*60+mi;
+}
+const roundOT=(h,step)=>step>0?Math.floor(h*60/step+1e-9)*step/60:Math.round(h*100)/100;
+// Same rules as Threadix: AM pair + PM pair = 1 day, one half = ½ day, OT from OT-in (or PM-out / shift end) to OT-out.
+function dayCalc(r,S){
+  r=r||{};const t=k=>r[k]?parseT(r[k]):null,ai=t("ai"),ao=t("ao"),pi=t("pi"),po=t("po"),oi=t("oi"),oo=t("oo"),regEnd=parseT(S.regEnd)??1080;
+  const hasAny=[ai,ao,pi,po,oi,oo].some(x=>x!=null),amDone=ai!=null&&ao!=null,pmDone=pi!=null&&(po!=null||oo!=null||oi!=null);
+  let ot=0,flag="",otStart=oi!=null?oi:(po!=null?po:null);
+  if(oo!=null){if(otStart==null)otStart=regEnd;if(oi==null&&po==null&&pi==null&&ai==null)flag="overtime lang";ot=((oo-otStart+1440)%1440)/60;if(ot>16)flag="sobrang habang OT, i-check"}
+  else if(oi!=null)flag="walang OT out";
+  ot=roundOT(ot,S.otRound||0);
+  let day=0;const full=amDone&&pmDone,half=amDone!==pmDone;
+  if(r.d!==undefined&&r.d!==null&&r.d!=="")day=+r.d;else if(full)day=1;else if(half){day=0.5;flag=flag||(amDone?"walang PM":"walang AM")}else if(hasAny){day=+S.incomplete||0;flag=flag||"kulang ang punch"}
+  return{day,ot,flag,hasAny};
+}
+function cardCalc(c,S,half){
+  let days=0,ot=0,otDays=0,flags=0;const n=dim(c.month);
+  for(let d=1;d<=n;d++){if(half==="1-15"&&d>15)continue;if(half==="16-end"&&d<=15)continue;const r=c.rows&&c.rows[d];if(!r)continue;const k=dayCalc(r,S);days+=k.day;ot+=k.ot;if(k.ot>0)otDays++;if(k.flag)flags++}
+  return{days:Math.round(days*100)/100,otHours:Math.round(ot*100)/100,otDays,flags};
+}
+const tcId=(empId,ym)=>empId+"_"+ym;
+function payFor(e,k){
+  const unit=e.otUnit==="day"?"day":e.otUnit==="minute"?"minute":"hour",q=unit==="day"?k.otDays:unit==="minute"?k.otHours*60:k.otHours;
+  const reg=Math.round(k.days*(+e.rate||0)*100)/100,ot=Math.round(q*(+e.otRate||0)*100)/100;
+  return{unit,q:Math.round(q*100)/100,reg,ot,total:Math.round((reg+ot)*100)/100};
+}
+function payRows(){
+  const S=paySet();
+  return list("timecards").filter(c=>c.month===sal.month&&data.employees.has(c.empId)).map(c=>{
+    const e=data.employees.get(c.empId),k=cardCalc(c,S,sal.half),p=payFor(e,k),adj=Number(sal.adj[c.empId])||0;
+    return{empId:c.empId,name:e.name,position:e.position||"",days:k.days,rate:+e.rate||0,regular:p.reg,otQty:p.q,otUnit:p.unit,otRate:+e.otRate||0,otPay:p.ot,adj,total:Math.round((p.total+adj)*100)/100,flags:k.flags};
+  }).sort((a,b)=>a.name.localeCompare(b.name));
+}
+function vSalary(){
+  if(mode==="db"&&sal.admin===false)return `<div class="panel empty"><h2 style="margin-bottom:6px">Sa Owner account lang makikita ang Salary</h2>Naka-lock ang sahod ng staff sa Claude account ng may-ari ng POS (o sa mga Editor). Buksan ang page gamit ang account na iyon.</div>`;
+  const tabs=[["run","Pay run"],["cards","Time cards"],["emp","Employees ("+data.employees.size+")"],["chart","Chart"],["saved","Saved ("+data.payroll.size+")"]];
+  const body={run:salRun,cards:salCards,emp:salEmp,chart:salChart,saved:salSaved}[sal.tab]();
+  return `<div class="subtabs" role="group" aria-label="Salary sections">${tabs.map(([k,l])=>`<button data-sal="tab" data-v="${k}" aria-pressed="${sal.tab===k}">${l}</button>`).join("")}</div>${body}`;
+}
+function monthPicker(){return `<div class="field"><label for="salMonth">Buwan</label><input type="month" id="salMonth" data-salin="month" value="${sal.month}"></div>`}
+
+/* employees */
+function salEmp(){
+  const E=empList();
+  return `<div class="panel"><div class="panel-head"><div><h2>Employees</h2><span class="muted">${E.filter(e=>e.active!==false).length} active · binabayaran kada araw, may overtime, mula sa time card</span></div><button class="btn primary" data-sal="emp-new">+ Add employee</button></div>
+   ${E.length?`<div class="tablewrap" style="border:0"><table><thead><tr><th>Employee</th><th>Pay type</th><th>Position</th><th class="r">Rate / day</th><th class="r">OT rate</th><th>Status</th><th class="r">Actions</th></tr></thead><tbody>
+   ${E.map(e=>`<tr style="${e.active===false?"opacity:.55":""}"><td><div style="display:flex;gap:10px;align-items:center"><span class="avatar" style="width:32px;height:32px;font-size:13px">${esc(initials(e.name))}</span><b>${esc(e.name)}</b></div></td><td>${esc(PAYTYPES[e.payType]||PAYTYPES.regular)}</td><td>${esc(e.position||"—")}</td>
+    <td class="r num">${peso(e.rate)}</td><td class="r num">${e.otRate?peso(e.otRate)+" / "+(e.otUnit==="day"?"day":e.otUnit==="minute"?"min":"hr"):"—"}</td>
+    <td>${e.active===false?'<span class="chip out">Inactive</span>':'<span class="chip ok">Active</span>'}</td>
+    <td><div class="actions"><button class="btn small" data-sal="emp-edit" data-id="${esc(e.id)}">Edit</button><button class="btn small danger" data-sal="emp-del" data-id="${esc(e.id)}">Delete</button></div></td></tr>`).join("")}</tbody></table></div>`
+   :`<div class="empty">Wala pang employee. Idagdag ang bawat isa: <b>pangalan</b>, <b>rate kada araw</b> at <b>overtime rate</b>. Kapag binago ang rate dito, iyon na ang gagamitin sa susunod na payroll.</div>`}</div>`;
+}
+function empForm(id){
+  const v=id?data.employees.get(id):{payType:"regular",otUnit:"hour"};
+  const staffNames=list("staff").map(s=>s.name).filter(n=>!empList().some(e=>e.name===n));
+  openModal(`<h2>${id?"Edit employee":"Bagong employee"}</h2>
+   <div class="field"><label for="ef-name">Buong pangalan</label><input type="text" id="ef-name" list="ef-staff" value="${esc(v.name||"")}" placeholder="hal. Mark Santos"><datalist id="ef-staff">${staffNames.map(n=>`<option value="${esc(n)}">`).join("")}</datalist></div>
+   <div class="form2"><div class="field"><label for="ef-type">Pay type</label><select id="ef-type">${Object.entries(PAYTYPES).map(([k,l])=>`<option value="${k}" ${(v.payType||"regular")===k?"selected":""}>${l}</option>`).join("")}</select></div>
+   <div class="field"><label for="ef-pos">Position</label><input type="text" id="ef-pos" value="${esc(v.position||"")}" placeholder="hal. Barista"></div>
+   <div class="field"><label for="ef-rate">Rate kada araw (₱)</label><input type="number" id="ef-rate" min="0" step="0.01" value="${esc(v.rate||"")}"></div>
+   <div class="field"><label for="ef-ot">Overtime rate (₱)</label><input type="number" id="ef-ot" min="0" step="0.01" value="${esc(v.otRate||"")}"></div>
+   <div class="field"><label for="ef-unit">Overtime rate ay kada</label><select id="ef-unit"><option value="hour" ${v.otUnit!=="day"&&v.otUnit!=="minute"?"selected":""}>Oras ng OT</option><option value="minute" ${v.otUnit==="minute"?"selected":""}>Minuto ng OT</option><option value="day" ${v.otUnit==="day"?"selected":""}>Araw na may OT</option></select></div>
+   <div class="field"><label for="ef-act">Status</label><select id="ef-act"><option value="1" ${v.active!==false?"selected":""}>Active</option><option value="0" ${v.active===false?"selected":""}>Hindi na nagtatrabaho</option></select></div></div>
+   <div class="foot"><button class="btn" data-close>Cancel</button><button class="btn primary" data-save>Save employee</button></div>`,el=>{
+    el.querySelector("#ef-name").focus();
+    el.querySelector("[data-save]").onclick=()=>{
+      const name=el.querySelector("#ef-name").value.trim(),rate=Number(el.querySelector("#ef-rate").value)||0;
+      if(!name)return toast("Ilagay ang pangalan.",true);
+      if(!(rate>0))return toast("Ilagay ang rate kada araw.",true);
+      const body={name,payType:el.querySelector("#ef-type").value,position:el.querySelector("#ef-pos").value.trim(),rate,otRate:Number(el.querySelector("#ef-ot").value)||0,otUnit:el.querySelector("#ef-unit").value,active:el.querySelector("#ef-act").value==="1"};
+      put("employees",id||"emp-"+uid(),body);closeModal();toast("Na-save si "+name);
+    };
+  });
+}
+function empDelete(id){const e=data.employees.get(id);if(!e)return;
+  openModal(`<h2>I-delete si ${esc(e.name)}?</h2><p class="muted">Mawawala rin ang mga time card niya. Mananatili ang mga naka-save na payroll. Kung umalis lang siya, gawing "Hindi na nagtatrabaho" na lang sa Edit.</p>
+  <div class="foot"><button class="btn" data-close>Cancel</button><button class="btn danger" data-del>Delete</button></div>`,el=>{el.querySelector("[data-del]").onclick=()=>{
+    list("timecards").filter(c=>c.empId===id).forEach(c=>del("timecards",c.id));del("employees",id);closeModal();toast("Na-delete si "+e.name)}})}
+
+/* time cards */
+function salCards(){
+  const S=paySet(),E=empList().filter(e=>e.active!==false);
+  const tile=e=>{const c=data.timecards.get(tcId(e.id,sal.month)),k=c?cardCalc(c,S,"all"):null;
+    return `<button class="emptile" data-sal="open" data-id="${esc(e.id)}" aria-pressed="${sal.open===e.id}"><span class="avatar" style="width:36px;height:36px;font-size:14px">${esc(initials(e.name))}</span><div style="min-width:0"><b>${esc(e.name)}</b><small>${k?`${k.days} araw · ${hm(k.otHours)} OT${k.flags?` · <span class="flag">${k.flags} i-check</span>`:""}`:"Wala pang time card · pindutin"}</small></div></button>`};
+  const open=sal.open&&data.employees.has(sal.open)?Object.assign({id:sal.open},data.employees.get(sal.open)):null;
+  return `<div class="panel"><div class="panel-head"><div><h2>Time cards</h2><span class="muted">Pumili ng employee, tapos kopyahin ang mga stamp mula sa papel na time card.</span></div>${monthPicker()}</div>
+   ${E.length?`<div class="emptiles">${E.map(tile).join("")}</div>`:`<div class="empty"><b>Mag-add muna ng employees</b> sa Employees tab.</div>`}</div>
+   ${open?tcBody(open):""}`;
+}
+function tcBody(e){
+  const S=paySet(),c=Object.assign({empId:e.id,month:sal.month,rows:{}},data.timecards.get(tcId(e.id,sal.month))||{}),n=dim(sal.month),rows=c.rows||{};
+  const k=cardCalc(c,S,"all"),p=payFor(e,k);
+  return `<div class="panel"><div class="panel-head"><h2>${esc(e.name)} · ${monthLabel(sal.month)}</h2><span class="muted">${k.days} araw · ${hm(k.otHours)} OT</span></div>
+   <div class="tablewrap" style="border:0"><table class="tc"><thead><tr><th>Araw</th>${TC_COLS.map(x=>`<th>${x[1]}</th>`).join("")}<th style="min-width:200px">Bilang</th></tr></thead><tbody>
+   ${Array.from({length:n},(_,i)=>i+1).map(d=>{const r=rows[d]||{},dk=dayCalc(r,S),ov=r.d!=null&&r.d!=="",wd=new Date(+sal.month.slice(0,4),+sal.month.slice(5,7)-1,d).toLocaleDateString("en-PH",{weekday:"short"});
+     return `<tr class="${Object.keys(r).length?"has":""}"><td><b>${d}</b> <span class="muted" style="font-size:11px">${wd}</span></td>${TC_COLS.map(([kk])=>`<td><input type="text" class="tin" id="tc-${d}-${kk}" data-salin="tc" data-d="${d}" data-k="${kk}" inputmode="numeric" value="${esc(r[kk]||"")}" placeholder="--:--" aria-label="Araw ${d} ${kk}"></td>`).join("")}
+     <td>${dk.hasAny||ov?`<select id="tcd-${d}" data-salin="tcday" data-d="${d}" style="width:70px;padding:3px" aria-label="Override"><option value="" ${ov?"":"selected"}>Auto</option>${[0,0.5,1].map(x=>`<option value="${x}" ${ov&&+r.d===x?"selected":""}>${x}</option>`).join("")}</select> <b>${dk.day}</b> araw${dk.ot?` · OT ${hm(dk.ot)}`:""}${dk.flag?` <span class="flag">⚠ ${esc(dk.flag)}</span>`:""}`:""}</td></tr>`}).join("")}
+   </tbody></table></div>
+   <div class="paytot"><div><small class="muted">Araw na pumasok</small><b>${k.days}</b><span class="num muted">× ${peso(e.rate)} = ${peso(p.reg)}</span></div>
+   <div><small class="muted">Overtime</small><b>${p.unit==="day"?k.otDays+" araw":p.unit==="minute"?Math.round(p.q)+" min":hm(k.otHours)}</b><span class="num muted">× ${peso(e.otRate)} = ${peso(p.ot)}</span></div>
+   <div class="gt"><small>Total sahod (buong buwan)</small><b>${peso(p.total)}</b></div></div>
+   <p class="muted" style="font-size:12px;margin:10px 0 0">I-type ang oras gaya ng <b>0933</b>, <b>9:33</b> o <b>5:30pm</b>. Pindutin ang <b>Enter</b> para lumipat sa susunod na araw. Iwanang blangko kung walang stamp. Pwedeng i-override ang bilang ng araw sa "Bilang".</p></div>`;
+}
+function tcWrite(d,k,val){
+  const empId=sal.open;if(!empId||!data.employees.has(empId))return;
+  const id=tcId(empId,sal.month),c=JSON.parse(JSON.stringify(data.timecards.get(id)||{empId,month:sal.month,rows:{}}));c.rows=c.rows||{};c.empId=empId;c.month=sal.month;
+  const row=c.rows[d]=c.rows[d]||{};
+  if(k==="d"){if(val==="")delete row.d;else row.d=+val}
+  else{if(val)row[k]=val;else delete row[k]}
+  if(!Object.keys(row).length)delete c.rows[d];
+  c.updated=Date.now();put("timecards",id,c);
+}
+
+/* pay run */
+function salRun(){
+  const S=paySet(),R=payRows(),tot=sum(R,r=>r.total),flagged=sum(R,r=>r.flags);
+  const sel=(id,label,opts,cur,key)=>`<div class="field"><label for="${id}">${label}</label><select id="${id}" data-salin="${key}">${opts.map(o=>`<option value="${o[0]}" ${String(cur)===String(o[0])?"selected":""}>${o[1]}</option>`).join("")}</select></div>`;
+  return `<div class="panel"><div class="form2" style="grid-template-columns:repeat(auto-fill,minmax(190px,1fr))">${monthPicker()}
+    ${sel("salHalf","Pay period",[["all","Buong buwan"],["1-15","1st hanggang 15th"],["16-end","16th hanggang katapusan"]],sal.half,"half")}
+    <div class="field"><label for="salRegEnd">Tapos ng regular shift</label><input type="time" id="salRegEnd" data-salin="regEnd" value="${esc(S.regEnd)}"></div>
+    ${sel("salRound","I-round down ang OT sa",[[0,"Eksaktong minuto"],[15,"15 minuto"],[30,"30 minuto"],[60,"1 oras"]],S.otRound,"otRound")}
+    ${sel("salInc","Araw na kulang ang punch ay",[[0,"0 araw"],[0.5,"Kalahating araw"],[1,"Buong araw"]],S.incomplete,"incomplete")}</div>
+    <p class="muted" style="font-size:12px;margin:12px 0 0">${R.length} employee na may time card sa ${monthLabel(sal.month)}. ${flagged?`<span class="flag">${flagged} araw na dapat i-check.</span> `:""}Rules: AM pair + PM pair = 1 araw. Isang pair lang = ½ araw. Ang OT ay mula OT-in (o PM-out) hanggang OT-out.</p></div>
+  <div class="panel"><div class="panel-head"><div><h2>Payroll</h2><span class="muted">${periodLabel(sal.month,sal.half)}</span></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-sal="csv" ${R.length?"":"disabled"}>Export CSV</button><button class="btn" data-sal="slips" ${R.length?"":"disabled"}>Payslips</button><button class="btn primary" data-sal="save" ${R.length?"":"disabled"}>Save payroll</button></div></div>
+   ${R.length?`<div class="tablewrap" style="border:0"><table><thead><tr><th>Employee</th><th class="r">Araw</th><th class="r">Rate / araw</th><th class="r">Regular pay</th><th class="r">Overtime</th><th class="r">OT rate</th><th class="r">OT pay</th><th class="r">Adjust (+/−)</th><th class="r">Total</th></tr></thead><tbody>
+   ${R.map(r=>`<tr><td><b>${esc(r.name)}</b>${r.flags?` <span class="flag">⚠ ${r.flags}</span>`:""}</td><td class="r num">${r.days}</td><td class="r num">${peso(r.rate)}</td><td class="r num">${peso(r.regular)}</td><td class="r num">${r.otUnit==="hour"?hm(r.otQty):r.otQty+(r.otUnit==="day"?" araw":" min")}</td><td class="r num">${peso(r.otRate)}</td><td class="r num">${peso(r.otPay)}</td>
+     <td class="r"><input type="number" class="cellnum" id="adj-${esc(r.empId)}" data-salin="adj" data-id="${esc(r.empId)}" step="0.01" value="${r.adj||""}" placeholder="0" aria-label="Adjustment para kay ${esc(r.name)}"></td><td class="r num"><b>${peso(r.total)}</b></td></tr>`).join("")}
+   <tr style="background:var(--surface-2)"><td><b>TOTAL (${R.length})</b></td><td class="r num"><b>${Math.round(sum(R,r=>r.days)*100)/100}</b></td><td></td><td class="r num">${peso(sum(R,r=>r.regular))}</td><td></td><td></td><td class="r num">${peso(sum(R,r=>r.otPay))}</td><td class="r num">${peso(sum(R,r=>r.adj))}</td><td class="r num"><b>${peso(tot)}</b></td></tr></tbody></table></div>
+   <p class="muted" style="font-size:12px;margin:10px 0 0">Gamitin ang Adjust para sa bonus (+) o vale / cash advance (−).</p>`
+   :`<div class="empty">Walang time card para sa period na ito. Mag-type ng oras sa <b>Time cards</b> tab.</div>`}</div>`;
+}
+function payRun(id){
+  if(id){const r=data.payroll.get(id);return r?Object.assign({id},r):null}
+  const rows=payRows();const m=me();
+  return{period:periodLabel(sal.month,sal.half),month:sal.month,half:sal.half,by:m?m.name:"Owner",rows,total:Math.round(sum(rows,r=>r.total)*100)/100};
+}
+function savePayroll(){
+  const run=payRun();if(!run.rows.length)return;
+  run.at=Date.now();put("payroll","pay-"+uid(),run);sal.adj={};sal.tab="saved";scheduleRender();toast("Na-save ang payroll: "+peso(run.total));
+}
+const slipHtml=(r,run)=>`<div class="slip"><div class="slip-h"><b>Kapehan POS</b><span>PAYSLIP</span></div>
+  <div class="form2"><div><small class="muted">Employee</small><div><b>${esc(r.name)}</b>${r.position?` · ${esc(r.position)}`:""}</div></div><div><small class="muted">Pay period</small><div><b>${esc(run.period)}</b></div></div></div>
+  <table><tr><td>Araw na pumasok</td><td>${r.days}</td><td>× ${peso(r.rate)}</td><td class="r">${peso(r.regular)}</td></tr>
+  <tr><td>Overtime (${r.otUnit==="day"?"araw":r.otUnit==="minute"?"minuto":"oras"})</td><td>${r.otUnit==="hour"?hm(r.otQty):r.otQty}</td><td>× ${peso(r.otRate)}</td><td class="r">${peso(r.otPay)}</td></tr>
+  ${r.adj?`<tr><td colspan="3">${r.adj>0?"Bonus / dagdag":"Vale / bawas"}</td><td class="r">${peso(r.adj)}</td></tr>`:""}
+  <tr class="tot"><td colspan="3">NET PAY</td><td class="r">${peso(r.total)}</td></tr></table>
+  <div class="slip-s"><span>Prepared by: ${esc(run.by||"")}</span><span>Received by: ______________</span></div></div>`;
+function showSlips(id){
+  const run=payRun(id);if(!run||!run.rows.length)return;
+  openModal(`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2>Payslips · ${esc(run.period)}</h2><button class="btn small" data-dl>Download (.html)</button></div>
+   <div style="display:flex;flex-direction:column;gap:12px">${run.rows.map(r=>slipHtml(r,run)).join("")}</div>
+   <div class="foot"><button class="btn primary" data-close>Close</button></div>`,el=>{el.querySelector("[data-dl]").onclick=()=>downloadSlips(run)});
+}
+async function saveFile(filename,text,type){
+  if(!(window.claude&&window.claude.use)){ // opened as a plain web page (not inside Claude): normal browser download
+    try{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type}));a.download=filename;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);toast("Na-download: "+filename)}catch(e){toast("Hindi na-download ang file.",true)}
+    return;
+  }
+  let dl=null;try{dl=await window.claude.use("downloads")}catch(e){}
+  if(!dl){toast("Hindi available ang download dito. Buksan ang POS sa claude.ai.",true);return}
+  try{await dl.save({filename,data:new Blob([text],{type})});toast("Na-save: "+filename)}catch(e){if(e&&e.code!=="dismissed"&&e.code!=="declined")toast("Hindi na-download ang file.",true)}
+}
+const fileStem=run=>String(run.period).replace(/[^\w]+/g,"_").replace(/_+$/,"");
+function downloadCSV(run){
+  const q=v=>{v=String(v==null?"":v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
+  const rows=[["Employee","Position","Days","Rate per day","Regular pay","OT qty","OT unit","OT rate","OT pay","Adjustment","Total pay"]].concat(run.rows.map(r=>[r.name,r.position,r.days,r.rate,r.regular,r.otQty,r.otUnit,r.otRate,r.otPay,r.adj,r.total]));
+  saveFile("payroll-"+fileStem(run)+".csv",rows.map(r=>r.map(q).join(",")).join("\n"),"text/csv");
+}
+function downloadSlips(run){
+  const css="body{font-family:Inter,Segoe UI,sans-serif;color:#15201A;margin:24px}.slip{border:1px dashed #999;border-radius:10px;padding:14px;margin:0 0 16px;page-break-inside:avoid;max-width:520px}.slip-h{display:flex;justify-content:space-between;border-bottom:3px solid #4E2C1E;padding-bottom:6px;margin-bottom:8px}.slip-h span{letter-spacing:.12em;font-weight:700;color:#C2552B}.form2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}.muted{color:#5B675F}table{width:100%;border-collapse:collapse;font-family:monospace}td{padding:4px 2px}.r{text-align:right}tr.tot td{border-top:1px dashed #999;font-weight:700}.slip-s{display:flex;justify-content:space-between;color:#5B675F;font-size:12px;margin-top:8px}";
+  saveFile("payslips-"+fileStem(run)+".html",`<!doctype html><html><head><meta charset="utf-8"><title>Payslips ${esc(run.period)}</title><style>${css}</style></head><body>${run.rows.map(r=>slipHtml(r,run)).join("")}</body></html>`,"text/html");
+}
+
+/* saved */
+function salSaved(){
+  const runs=list("payroll").sort((a,b)=>b.at-a.at);
+  return `<div class="panel"><div class="panel-head"><div><h2>Saved payrolls</h2><span class="muted">Buksan ang lumang payroll para makita ulit ang payslips</span></div></div>
+   <div class="rows">${runs.length?runs.map(r=>`<div class="row" style="flex-wrap:wrap"><div class="grow"><b>${esc(r.period)}</b><div class="sub">${r.rows.length} employee · na-save ${new Date(r.at).toLocaleDateString("en-PH",{month:"short",day:"numeric",year:"numeric"})} ni ${esc(r.by||"")}</div></div><span class="num"><b>${peso(r.total)}</b></span>
+     <button class="btn small" data-sal="run-slips" data-id="${esc(r.id)}">Payslips</button><button class="btn small" data-sal="run-csv" data-id="${esc(r.id)}">CSV</button><button class="btn small danger" data-sal="run-del" data-id="${esc(r.id)}">Delete</button></div>`).join(""):`<div class="empty">Wala pang naka-save na payroll. Gumawa sa <b>Pay run</b> tab.</div>`}</div></div>`;
+}
+
+/* chart */
+function salChartData(){
+  const S=paySet(),buckets={},iso=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  const keyOf=d=>{if(sal.by==="month")return iso(d).slice(0,7);const m=new Date(d);m.setDate(m.getDate()-((m.getDay()+6)%7));return iso(m)};
+  list("timecards").forEach(c=>{const e=data.employees.get(c.empId);if(!e||(sal.emp!=="all"&&sal.emp!==c.empId))return;const n=dim(c.month);
+    for(let d=1;d<=n;d++){const r=c.rows&&c.rows[d];if(!r)continue;const k=dayCalc(r,S);if(!k.day&&!k.ot)continue;
+      const key=keyOf(new Date(+c.month.slice(0,4),+c.month.slice(5,7)-1,d)),b=buckets[key]||(buckets[key]={reg:0,ot:0});
+      b.reg+=k.day*(+e.rate||0);b.ot+=e.otUnit==="day"?(k.ot>0?+e.otRate||0:0):e.otUnit==="minute"?k.ot*60*(+e.otRate||0):k.ot*(+e.otRate||0)}});
+  const out=[],now=new Date(),cur=keyOf(now);
+  for(let i=11;i>=0;i--){const d=new Date(now);if(sal.by==="month")d.setMonth(d.getMonth()-i,1);else d.setDate(d.getDate()-7*i);const key=keyOf(d),b=buckets[key]||{reg:0,ot:0};
+    out.push({key,label:sal.by==="month"?MONTHS[+key.slice(5,7)-1].slice(0,3):new Date(key+"T00:00").toLocaleDateString("en-PH",{month:"short",day:"numeric"}),reg:Math.round(b.reg),ot:Math.round(b.ot),cur:key===cur})}
+  return out;
+}
+function salChart(){
+  const D=salChartData(),tot=sum(D,x=>x.reg+x.ot),max=Math.max(1,...D.map(x=>x.reg+x.ot)),best=D.reduce((a,x)=>x.reg+x.ot>a.reg+a.ot?x:a,D[0]);
+  const W=640,H=230,L=52,B=26,T=14,step=Math.pow(10,Math.floor(Math.log10(max))),nice=[1,2,2.5,5,10].map(f=>f*step).find(v=>max/v<=5)||step*10,top=Math.ceil(max/nice)*nice,y=v=>T+(H-T-B)*(1-v/top),bw=(W-L-8)/D.length;
+  let g="";for(let v=0;v<=top+1e-9;v+=nice)g+=`<line x1="${L}" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="var(--muted)" font-family="IBM Plex Mono,monospace">${v>=1000?(v/1000)+"k":v}</text>`;
+  D.forEach((x,i)=>{const bx=L+4+i*bw+bw*.15,w=bw*.7;g+=`<rect x="${bx}" y="${y(x.reg)}" width="${w}" height="${Math.max(0,H-B-y(x.reg))}" fill="var(--accent)"><title>${esc(x.label)}: regular ${peso0(x.reg)}</title></rect>`;
+    if(x.ot)g+=`<rect x="${bx}" y="${y(x.reg+x.ot)}" width="${w}" height="${Math.max(0,y(x.reg)-y(x.reg+x.ot))}" fill="var(--stool)"><title>${esc(x.label)}: overtime ${peso0(x.ot)}</title></rect>`;
+    if(i%2===0||i===D.length-1)g+=`<text x="${L+4+i*bw+bw/2}" y="${H-8}" text-anchor="middle" font-size="11" fill="${x.cur?"var(--ink)":"var(--muted)"}" font-weight="${x.cur?700:400}">${esc(x.label)}</text>`});
+  return `<div class="panel"><div class="panel-head"><div><h2>Payroll cost kada ${sal.by==="week"?"linggo":"buwan"}</h2><span class="muted">Mula sa time cards, gamit ang kasalukuyang rate ng bawat employee. Huling 12 ${sal.by==="week"?"linggo":"buwan"}.</span></div>
+   <div style="display:flex;gap:8px;flex-wrap:wrap"><div class="seg" role="group"><button data-sal="by" data-v="week" aria-pressed="${sal.by==="week"}">Weekly</button><button data-sal="by" data-v="month" aria-pressed="${sal.by==="month"}">Monthly</button></div>
+   <select id="salEmp" data-salin="emp" aria-label="Employee"><option value="all">Lahat ng employee</option>${empList().map(e=>`<option value="${esc(e.id)}" ${sal.emp===e.id?"selected":""}>${esc(e.name)}</option>`).join("")}</select></div></div>
+   <div class="kpis" style="margin-bottom:14px"><div class="kpi"><span class="label">Total (12 ${sal.by==="week"?"linggo":"buwan"})</span><span class="v">${peso0(tot)}</span></div><div class="kpi"><span class="label">Average</span><span class="v">${peso0(tot/D.length)}</span></div><div class="kpi"><span class="label">Overtime</span><span class="v">${peso0(sum(D,x=>x.ot))}</span></div><div class="kpi"><span class="label">Pinakamataas</span><span class="v">${peso0(best.reg+best.ot)}</span><span class="d">${esc(best.label)}</span></div></div>
+   ${tot?`<div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Payroll cost chart">${g}</svg></div><div class="legend"><span><i style="background:var(--accent)"></i>Regular pay</span><span><i style="background:var(--stool)"></i>Overtime</span>${sal.by==="week"?"<span>Nagsisimula ang linggo sa Lunes</span>":""}</div>`:`<div class="empty">Walang time-card data sa huling 12 ${sal.by==="week"?"linggo":"buwan"}.</div>`}</div>`;
+}
+
+/* salary events */
+document.addEventListener("click",e=>{
+  const b=e.target.closest("[data-sal]");if(!b)return;
+  if(!isOwner()&&me()){toast("Owner lang ang pwedeng gumawa nito.",true);return}
+  const a=b.dataset.sal,id=b.dataset.id;
+  switch(a){
+    case"tab":sal.tab=b.dataset.v;break;
+    case"by":sal.by=b.dataset.v;break;
+    case"open":sal.open=sal.open===id?null:id;break;
+    case"emp-new":empForm(null);return;
+    case"emp-edit":empForm(id);return;
+    case"emp-del":empDelete(id);return;
+    case"save":savePayroll();return;
+    case"slips":showSlips();return;
+    case"csv":downloadCSV(payRun());return;
+    case"run-slips":showSlips(id);return;
+    case"run-csv":{const r=payRun(id);r&&downloadCSV(r);return}
+    case"run-del":{const r=data.payroll.get(id);if(!r)return;openModal(`<h2>I-delete ang payroll ng ${esc(r.period)}?</h2><p class="muted">Hindi na ito maibabalik. Hindi maaapektuhan ang mga time card.</p><div class="foot"><button class="btn" data-close>Cancel</button><button class="btn danger" data-del>Delete</button></div>`,el=>{el.querySelector("[data-del]").onclick=()=>{del("payroll",id);closeModal();toast("Na-delete ang payroll")}});return}
+  }
+  scheduleRender();
+});
+document.addEventListener("change",e=>{
+  const t=e.target,k=t.dataset&&t.dataset.salin;if(!k)return;
+  if(k==="month"){if(t.value){sal.month=t.value;sal.adj={}}}
+  else if(k==="half"){sal.half=t.value;sal.adj={}}
+  else if(k==="emp")sal.emp=t.value;
+  else if(k==="adj"){sal.adj[t.dataset.id]=t.value}
+  else if(k==="regEnd"||k==="otRound"||k==="incomplete"){const s=paySet();s[k]=k==="regEnd"?(t.value||"18:00"):+t.value;put("settings","pay",s);return}
+  else if(k==="tc"){const raw=t.value.trim(),m=parseT(raw),v=m==null?"":fmtT(m);if(raw&&!v){toast("Hindi naintindihan ang oras: "+raw,true);t.value="";return}t.value=v;tcWrite(t.dataset.d,t.dataset.k,v);return}
+  else if(k==="tcday"){tcWrite(t.dataset.d,"d",t.value);return}
+  scheduleRender();
+});
+document.addEventListener("keydown",e=>{
+  const t=e.target;if(e.key!=="Enter"||!t.classList||!t.classList.contains("tin"))return;e.preventDefault();
+  const nxt=document.getElementById("tc-"+(+t.dataset.d+1)+"-"+t.dataset.k);t.blur();if(nxt){nxt.focus();nxt.select()}
+});
+
+/* ---------- notifications ---------- */
+function renderNotif(){
+  const ns=list("notifications").sort((a,b)=>b.ts-a.ts), unread=ns.filter(n=>!n.read).length;
+  $("#npanel").innerHTML=`<header><b>Notifications</b><div style="display:flex;gap:6px">${unread?'<button class="btn small" data-act="n-readall">Mark all read</button>':""}${ns.length?'<button class="btn small" data-act="n-clear">Clear</button>':""}</div></header>
+   <div class="list">${ns.length?ns.slice(0,50).map(n=>`<div class="nitem ${n.read?"":"unread"} ${n.level==="out"?"out":""}"><span class="dot"></span><div style="flex:1;min-width:0"><div style="font-weight:${n.read?400:600}">${esc(n.text)}</div><div class="muted" style="font-size:12px">${new Date(n.ts).toLocaleString("en-PH",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</div>
+     <div style="display:flex;gap:6px;margin-top:6px">${data.inventory.has(n.invId)?`<button class="btn small" data-act="restock" data-id="${esc(n.invId)}">Restock</button>`:""}${n.read?"":`<button class="btn small" data-act="n-read" data-id="${esc(n.id)}">Mark read</button>`}</div></div></div>`).join(""):'<div class="empty">Walang alerts. Aabisuhan ka rito kapag paubos na ang stock.</div>'}</div>`;
+  hideOwnerOnly($("#npanel"));
+}
+function hideOwnerOnly(root){if(isOwner()||!me())return;root.querySelectorAll("[data-act]").forEach(b=>{if(OWNER_ONLY.includes(b.dataset.act))b.hidden=true})}
+function toggleBell(open){const p=$("#npanel");p.hidden=open==null?!p.hidden:!open;$("#bell").setAttribute("aria-expanded",String(!p.hidden));if(!p.hidden)renderNotif()}
+
+/* ---------- modal ---------- */
+function openModal(html,mount){
+  const root=$("#modalroot");root.innerHTML=`<div class="scrim"><div class="modal" role="dialog" aria-modal="true">${html}</div></div>`;
+  const el=root.querySelector(".modal");
+  root.querySelector(".scrim").onclick=e=>{if(e.target.classList.contains("scrim"))closeModal()};
+  el.querySelectorAll("[data-close]").forEach(b=>b.onclick=closeModal);
+  if(mount)mount(el);
+  if(!el.contains(document.activeElement)){const f=el.querySelector("[data-add],[data-save],[data-go],[data-close]");f&&f.focus()}
+}
+function closeModal(){$("#modalroot").innerHTML="";scheduleRender()}
+
+/* ---------- events ---------- */
+document.addEventListener("click",e=>{
+  const b=e.target.closest("[data-act]");
+  if(!e.target.closest("#npanel")&&!e.target.closest("#bell")&&!$("#npanel").hidden)toggleBell(false);
+  if(!b)return;const a=b.dataset.act,id=b.dataset.id;
+  if(st.readOnly&&["restock","inv-new","inv-edit","inv-del","menu-new","menu-edit","menu-del","n-read","n-readall","n-clear"].concat(OWNER_ONLY).includes(a)){toast("View-only ka, hindi ka makakapag-edit.",true);return}
+  if(OWNER_ONLY.includes(a)&&!isOwner()){toast("Owner lang ang pwedeng gumawa nito.",true);return}
+  switch(a){
+    case"logout":toggleBell(false);setMe("");break;
+    case"staff-new":staffForm(null);break;
+    case"staff-edit":staffForm(id);break;
+    case"staff-toggle":staffToggle(id);break;
+    case"staff-del":staffDelete(id);break;
+    case"go":st.invF=b.dataset.filter||"all";location.hash=b.dataset.to;break;
+    case"cat":st.cat=b.dataset.c;scheduleRender();break;
+    case"pick":pickItem(id);break;
+    case"qty":{const l=st.cart[b.dataset.i];l.qty+=Number(b.dataset.d);if(l.qty<=0)st.cart.splice(b.dataset.i,1);st.override=false;scheduleRender();break}
+    case"cart-clear":st.cart=[];scheduleRender();break;
+    case"pay":st.pay=b.dataset.p;scheduleRender();break;
+    case"tendq":st.tendered=String(b.dataset.v);scheduleRender();break;
+    case"checkout":checkout();break;
+    case"invF":st.invF=b.dataset.f;scheduleRender();break;
+    case"inv-new":invForm(null);break;
+    case"inv-edit":invForm(id);break;
+    case"inv-del":invDelete(id);break;
+    case"restock":toggleBell(false);restockForm(id);break;
+    case"period":st.period=b.dataset.p;scheduleRender();break;
+    case"rankBy":st.rankBy=b.dataset.r;scheduleRender();break;
+    case"menu-new":menuForm(null);break;
+    case"menu-edit":menuForm(id);break;
+    case"menu-del":menuDelete(id);break;
+    case"n-read":put("notifications",id,Object.assign({},data.notifications.get(id),{read:true}));break;
+    case"n-readall":list("notifications").filter(n=>!n.read).forEach(n=>put("notifications",n.id,Object.assign({},data.notifications.get(n.id),{read:true})));break;
+    case"n-clear":list("notifications").forEach(n=>del("notifications",n.id));break;
+  }
+});
+document.addEventListener("input",e=>{const a=e.target.dataset&&e.target.dataset.act;if(!a)return;
+  if(a==="invQ"){st.invQ=e.target.value;scheduleRender()}
+  else if(a==="tend"){st.tendered=e.target.value;scheduleRender()}
+  else if(a==="gref"){st.gref=e.target.value}
+  else if(a==="discAmt"){st.discCustom=e.target.value;scheduleRender()}});
+document.addEventListener("change",e=>{if(e.target.dataset&&e.target.dataset.act==="disc"){st.disc=e.target.value;scheduleRender()}});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){if($("#modalroot").innerHTML)closeModal();else if(!$("#npanel").hidden)toggleBell(false)}});
+$("#bell").onclick=()=>toggleBell();
+window.addEventListener("hashchange",route);
+$("#today").textContent=new Date().toLocaleDateString("en-PH",{weekday:"long",month:"long",day:"numeric",year:"numeric"});
+route();connect();
+})();
+</script>
+
+</body>
+</html>
