@@ -192,6 +192,10 @@ input[type=text],input[type=number],input[type=search],select{background:var(--s
 .check .grow{flex:1}
 .form2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .recipe-line{display:grid;grid-template-columns:minmax(0,1fr) 90px auto auto;gap:6px;align-items:center}
+.recipe-line.sized,.recipe-head.sized{grid-template-columns:minmax(0,1fr) repeat(3,64px) auto}
+.recipe-head{display:grid;grid-template-columns:minmax(0,1fr) 90px auto auto;gap:6px;align-items:center}
+.recipe-head span{font-size:10px;text-align:center;color:var(--muted)}
+.recipe-line input[type=number]{width:100%;padding:6px}
 .receipt{font-family:var(--f-mono);font-size:13px;background:var(--surface-2);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:4px}
 .receipt .sumrow{font-size:13px}
 
@@ -339,6 +343,13 @@ function invStatus(i){const s=Number(i.stock)||0;if(s<=0)return"out";if(s<=Numbe
 const statusChip=s=>s==="out"?'<span class="chip out">Ubos na</span>':s==="low"?'<span class="chip low">Paubos</span>':'<span class="chip ok">OK</span>';
 function priceOf(m,size){return m.sized?Number((m.prices||{})[size]||0):Number(m.price||0)}
 function fromPrice(m){return m.sized?Math.min(...SIZES.map(s=>priceOf(m,s)).filter(x=>x>0)):priceOf(m)}
+function recipeAmount(r,size){
+  const sizedQty=size&&r["qty"+size];
+  if(sizedQty!==undefined&&sizedQty!==null)return Number(sizedQty)||0;
+  if(!size&&r.qtyM!==undefined&&r.qtyM!==null)return Number(r.qtyM)||0;
+  const base=Number(r.qty)||0;
+  return size?base*(r.fixed?1:MULT[size]):base;
+}
 
 let toastT;
 function toast(msg,err){let t=$("#toast");if(!t){t=document.createElement("div");t.id="toast";document.body.appendChild(t)}
@@ -581,7 +592,7 @@ function vDash(){
 /* ---------- POS ---------- */
 function usage(lines){
   const u={};
-  const add=(m,size,qty)=>(m&&m.recipe||[]).forEach(r=>{if(!r.inv)return;const q=Number(r.qty)*(r.fixed||!size?1:MULT[size])*qty;u[r.inv]=(u[r.inv]||0)+q});
+  const add=(m,size,qty)=>(m&&m.recipe||[]).forEach(r=>{if(!r.inv)return;const q=recipeAmount(r,size)*qty;u[r.inv]=(u[r.inv]||0)+q});
   lines.forEach(l=>{add(data.menu.get(l.menuId),l.size,l.qty);(l.addons||[]).forEach(a=>add(data.menu.get(a.id),null,l.qty))});
   return u;
 }
@@ -849,17 +860,18 @@ function staffDelete(id){const s=data.staff.get(id);if(!s)return;
 /* ---------- MENU ---------- */
 function vMenu(){
   const menu=list("menu");
-  return `<div class="toolbar"><p class="muted" style="margin:0;max-width:62ch">Bawat drink ay may recipe. Kapag nabenta sa POS, ang mismong ingredients ang mababawasan sa Inventory. Sa S at L, naka-scale ang dami (×0.75 at ×1.25) maliban sa naka-check na "fixed".</p><span class="grow"></span><button class="btn primary" data-act="menu-new" ${st.readOnly?"disabled":""}>+ Add drink / item</button></div>
+  return `<div class="toolbar"><p class="muted" style="margin:0;max-width:62ch">Bawat drink ay may recipe. Kapag nabenta sa POS, ang ingredient amount para sa napiling size ang mababawasan sa Inventory.</p><span class="grow"></span><button class="btn primary" data-act="menu-new" ${st.readOnly?"disabled":""}>+ Add drink / item</button></div>
   ${CATS.map(c=>{const items=menu.filter(m=>m.category===c).sort((a,b)=>a.name.localeCompare(b.name));if(!items.length)return"";
     return `<div><div class="label" style="margin-bottom:8px">${c} · ${items.length}</div><div class="mcards">${items.map(m=>`<div class="mcard">
       <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><h2>${esc(m.name)}</h2>${m.active===false?'<span class="chip low">Hidden</span>':""}</div>
       <div class="num muted">${m.sized?SIZES.map(s=>s+" "+peso0(priceOf(m,s))).join(" · "):peso0(priceOf(m))}</div>
-      <ul>${(m.recipe||[]).map(r=>{const i=data.inventory.get(r.inv);return `<li>${fnum(r.qty)} ${esc(i?i.unit:"")} ${esc(i?i.name:"(deleted item)")}${r.fixed&&m.sized?" · fixed":""}</li>`}).join("")||"<li>Walang recipe</li>"}</ul>
+      <ul>${(m.recipe||[]).map(r=>{const i=data.inventory.get(r.inv);const amount=m.sized?SIZES.map(s=>`${s}: ${fnum(recipeAmount(r,s))}`).join(" · "):fnum(r.qty);return `<li>${amount} ${esc(i?i.unit:"")} ${esc(i?i.name:"(deleted item)")}</li>`}).join("")||"<li>Walang recipe</li>"}</ul>
       <div style="display:flex;gap:6px;margin-top:auto"><button class="btn small" data-act="menu-edit" data-id="${esc(m.id)}" ${st.readOnly?"disabled":""}>Edit</button><button class="btn small danger" data-act="menu-del" data-id="${esc(m.id)}" ${st.readOnly?"disabled":""}>Delete</button></div></div>`).join("")}</div></div>`}).join("")||`<div class="panel empty">Wala pang menu. Pindutin ang + Add drink para magsimula.</div>`}`;
 }
 function menuForm(id){
   const src=id?data.menu.get(id):{name:"",category:st.cat||"Espresso",sized:true,prices:{S:0,M:0,L:0},price:0,recipe:[],active:true};
   const m=JSON.parse(JSON.stringify(src));m.recipe=m.recipe||[];m.prices=m.prices||{S:0,M:0,L:0};
+  if(m.sized)m.recipe.forEach(r=>SIZES.forEach(s=>{if(r["qty"+s]==null)r["qty"+s]=recipeAmount(r,s)}));
   const inv=list("inventory").sort((a,b)=>a.name.localeCompare(b.name));
   const draw=()=>{openModal(`<h2>${id?"Edit "+esc(src.name):"Bagong item"}</h2>
    <div class="form2"><div class="field"><label for="m-name">Pangalan</label><input type="text" id="m-name" value="${esc(m.name)}" placeholder="hal. Iced Latte"></div>
@@ -867,10 +879,10 @@ function menuForm(id){
    <label class="check"><input type="checkbox" id="m-sized" ${m.sized?"checked":""}><span class="grow">May sizes (S / M / L)</span></label>
    ${m.sized?`<div class="sizes">${SIZES.map(s=>`<div class="field"><label for="m-p${s}">${s} price ₱</label><input type="number" id="m-p${s}" min="0" step="any" value="${esc(m.prices[s])}"></div>`).join("")}</div>`
      :`<div class="field"><label for="m-price">Price ₱</label><input type="number" id="m-price" min="0" step="any" value="${esc(m.price)}"></div>`}
-   <div class="field"><label>Recipe ${m.sized?"(dami para sa M)":"(per order)"}</label>
-    ${m.recipe.map((r,i)=>`<div class="recipe-line"><select data-ri="${i}" aria-label="Ingredient"><option value="">Pumili…</option>${inv.map(x=>`<option value="${esc(x.id)}" ${x.id===r.inv?"selected":""}>${esc(x.name)} (${esc(x.unit)})</option>`).join("")}</select>
-      <input type="number" data-rq="${i}" min="0" step="any" value="${esc(r.qty)}" aria-label="Dami">
-      ${m.sized?`<label title="Hindi nagbabago kahit iba ang size" style="font-size:12px;display:flex;gap:4px;align-items:center"><input type="checkbox" data-rf="${i}" ${r.fixed?"checked":""}>fixed</label>`:"<span></span>"}
+   <div class="field"><label>Recipe ${m.sized?"(dami kada size)":"(per order)"}</label>
+    ${m.sized?'<div class="recipe-head sized"><span></span><span>S</span><span>M</span><span>L</span><span></span></div>':""}
+    ${m.recipe.map((r,i)=>`<div class="recipe-line ${m.sized?"sized":""}"><select data-ri="${i}" aria-label="Ingredient"><option value="">Pumili…</option>${inv.map(x=>`<option value="${esc(x.id)}" ${x.id===r.inv?"selected":""}>${esc(x.name)} (${esc(x.unit)})</option>`).join("")}</select>
+      ${m.sized?SIZES.map(s=>`<input type="number" data-rq="${s}" data-riq="${i}" min="0" step="any" value="${esc(r["qty"+s])}" aria-label="${s} amount">`).join(""):`<input type="number" data-rq="qty" data-riq="${i}" min="0" step="any" value="${esc(r.qty)}" aria-label="Dami">`}
       <button class="btn small" data-rx="${i}" aria-label="Tanggalin">✕</button></div>`).join("")||'<div class="muted">Wala pang ingredients.</div>'}
     <button class="btn small" data-radd style="align-self:flex-start" ${inv.length?"":"disabled"}>+ Ingredient</button>
     ${inv.length?"":'<span class="muted">Mag-add muna ng ingredients sa Inventory.</span>'}</div>
@@ -878,14 +890,15 @@ function menuForm(id){
    <div class="foot"><button class="btn" data-close>Cancel</button><button class="btn primary" data-save>Save</button></div>`,el=>{
     const sync=()=>{m.name=el.querySelector("#m-name").value;m.category=el.querySelector("#m-cat").value;m.sized=el.querySelector("#m-sized").checked;m.active=el.querySelector("#m-active").checked;
       SIZES.forEach(s=>{const f=el.querySelector("#m-p"+s);if(f)m.prices[s]=Number(f.value)||0});const p=el.querySelector("#m-price");if(p)m.price=Number(p.value)||0;
-      el.querySelectorAll("[data-ri]").forEach(s=>m.recipe[s.dataset.ri].inv=s.value);el.querySelectorAll("[data-rq]").forEach(s=>m.recipe[s.dataset.rq].qty=Number(s.value)||0);el.querySelectorAll("[data-rf]").forEach(s=>m.recipe[s.dataset.rf].fixed=s.checked)};
-    el.querySelector("#m-sized").onchange=()=>{sync();if(!m.sized&&!m.price)m.price=m.prices.M||0;if(m.sized&&!m.prices.M)m.prices.M=m.price||0;draw()};
-    el.querySelector("[data-radd]").onclick=()=>{sync();m.recipe.push({inv:"",qty:0,fixed:false});draw()};
+      el.querySelectorAll("[data-ri]").forEach(s=>m.recipe[s.dataset.ri].inv=s.value);el.querySelectorAll("[data-riq]").forEach(f=>m.recipe[f.dataset.riq][f.dataset.rq]=Number(f.value)||0)};
+    el.querySelector("#m-sized").onchange=()=>{const wasSized=m.sized;sync();if(wasSized&&!m.sized)m.recipe.forEach(r=>r.qty=Number(r.qtyM)||0);if(!wasSized&&m.sized)m.recipe.forEach(r=>SIZES.forEach(s=>{if(r["qty"+s]==null)r["qty"+s]=recipeAmount(r,s)}));if(!m.sized&&!m.price)m.price=m.prices.M||0;if(m.sized&&!m.prices.M)m.prices.M=m.price||0;draw()};
+    el.querySelector("[data-radd]").onclick=()=>{sync();m.recipe.push(m.sized?{inv:"",qtyS:0,qtyM:0,qtyL:0}:{inv:"",qty:0});draw()};
     el.querySelectorAll("[data-rx]").forEach(b=>b.onclick=()=>{sync();m.recipe.splice(Number(b.dataset.rx),1);draw()});
     el.querySelector("[data-save]").onclick=()=>{sync();
       if(!m.name.trim()){toast("Lagyan ng pangalan ang item.",true);return}
       if(m.sized?!SIZES.some(s=>m.prices[s]>0):!(m.price>0)){toast("Lagyan ng presyo.",true);return}
-      const body={name:m.name.trim(),category:m.category,sized:m.sized,active:m.active,recipe:m.recipe.filter(r=>r.inv&&r.qty>0).map(r=>({inv:r.inv,qty:r.qty,fixed:!!r.fixed}))};
+      if(m.recipe.some(r=>(m.sized?SIZES.map(s=>Number(r["qty"+s])||0):[Number(r.qty)||0]).some(q=>q<0))){toast("Hindi pwedeng negative ang dami ng ingredient.",true);return}
+      const body={name:m.name.trim(),category:m.category,sized:m.sized,active:m.active,recipe:m.recipe.filter(r=>r.inv&&(m.sized?SIZES.some(s=>Number(r["qty"+s])>0):Number(r.qty)>0)).map(r=>m.sized?{inv:r.inv,qtyS:Number(r.qtyS)||0,qtyM:Number(r.qtyM)||0,qtyL:Number(r.qtyL)||0}:{inv:r.inv,qty:Number(r.qty)||0})};
       if(m.sized)body.prices={S:m.prices.S,M:m.prices.M,L:m.prices.L};else body.price=m.price;
       put("menu",id||body.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)+"-"+uid().slice(-4),body);closeModal();toast("Na-save ang "+body.name)};
   });
@@ -1237,3 +1250,4 @@ route();connect();
 
 </body>
 </html>
+
