@@ -304,9 +304,12 @@ table.tc tr.has td{background:var(--accent-soft)}
 <div class="lock" id="lock" hidden></div>
 <div id="modalroot"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 (function(){
 "use strict";
+const SUPABASE_URL="https://nmwmbvqugqvtfhzzimzs.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY="sb_publishable_27JmxsgcmN1frg6LeiqFAQ_EajRIOzI";
 const CATS=["Espresso","Iced Coffee","Milktea","Pastries","Add-ons"];
 const SIZES=["S","M","L"], MULT={S:0.75,M:1,L:1.25};
 const PAYS=["Cash","GCash","Card"];
@@ -345,19 +348,18 @@ function toast(msg,err){let t=$("#toast");if(!t){t=document.createElement("div")
 const queues={};
 function enqueue(key,fn){const p=(queues[key]||Promise.resolve()).then(fn,fn);queues[key]=p.catch(()=>{});return p}
 function onWriteErr(e){
-  const c=e&&e.code;
-  if(c==="invalid_argument"&&!st.readOnly){st.readOnly=true;showBanner("View-only ka sa POS na ito, kaya hindi ma-save ang changes. Hilingin sa owner na gawin kang Contributor.");}
-  else if(c==="quota_exceeded")toast("Puno na ang storage ng app. Mag-delete ng lumang records.",true);
-  else toast("Hindi na-save. Subukan ulit.",true);
+  console.error("Supabase write failed:",e);
+  if(e&&e.code==="42501"){st.readOnly=true;showBanner("View-only ka sa POS na ito. I-check ang database permissions.");}
+  else toast("Hindi na-save sa Supabase. Subukan ulit.",true);
 }
 function put(col,id,body){
   data[col].set(id,body);scheduleRender();
-  if(mode==="db")return enqueue(col+"/"+id,()=>db.collection(col).doc(id).set(body)).catch(onWriteErr);
+  if(mode==="db")return enqueue(col+"/"+id,()=>db.from(col).upsert({id,body},{onConflict:"id"})).then(r=>{if(r.error)throw r.error}).catch(onWriteErr);
   saveLocal();return Promise.resolve();
 }
 function del(col,id){
   data[col].delete(id);scheduleRender();
-  if(mode==="db")return enqueue(col+"/"+id,()=>db.collection(col).doc(id).delete()).catch(onWriteErr);
+  if(mode==="db")return enqueue(col+"/"+id,()=>db.from(col).delete().eq("id",id)).then(r=>{if(r.error)throw r.error}).catch(onWriteErr);
   saveLocal();return Promise.resolve();
 }
 const LKEY="kapehan-pos-local";
@@ -371,25 +373,44 @@ function startLocal(){
 function showBanner(t){const b=$("#banner");b.textContent=t;b.hidden=!t}
 
 async function connect(){
-  for(let i=0;i<30&&!(window.claude&&window.claude.use);i++)await sleep(100);
-  if(!(window.claude&&window.claude.use)){startLocal();return}
-  const timer=setTimeout(()=>{if(loaded.size<COLS.length)showBanner("Hindi pa maabot ang data. Baka mabagal ang internet. Maghihintay pa…")},10000);
-  let d=null;try{d=await window.claude.use("db")}catch(e){}
-  if(!d){clearTimeout(timer);startLocal();return}
-  db=d;mode="db";$("#conn").textContent="Naka-sync";
-  window.claude.use("user").then(async u=>{
-    if(!u)return;
-    try{const w=await u.can("data.write");if(w===false){st.readOnly=true;showBanner("View-only ka: makikita mo ang data pero hindi ka makakapag-benta o maka-edit.")}}catch(e){}
-    try{sal.admin=await u.canEdit()}catch(e){}
-    scheduleRender();
-  }).catch(()=>{});
+  if(!window.supabase||!window.supabase.createClient){
+    showBanner("Hindi ma-load ang Supabase library. Suriin ang internet connection.");
+    $("#conn").textContent="Offline";
+    startLocal();
+    return;
+  }
+  db=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+  mode="db";
+  $("#conn").textContent="Connecting sa Supabase…";
+  const timer=setTimeout(()=>{if(loaded.size<COLS.length)showBanner("Hindi pa maabot ang data ng Supabase. Baka mabagal ang internet.")},10000);
+  let failed=false;
+  await Promise.all(COLS.map(async c=>{
+    const r=await db.from(c).select("id,body").limit(c==="sales"?1000:10000);
+    if(r.error){failed=true;console.error("Supabase read failed:",c,r.error);return}
+    data[c]=new Map((r.data||[]).map(row=>[row.id,row.body||{}]));
+    loaded.add(c);
+  }));
+  clearTimeout(timer);
+  if(failed){
+    showBanner("Hindi ma-read ang ilang tables sa Supabase. I-check ang SQL schema at RLS policies.");
+    $("#conn").textContent="Offline";
+  }else{
+    showBanner("");
+    $("#conn").textContent="Naka-sync sa Supabase";
+  }
+  scheduleRender();
+
   COLS.forEach(c=>{
-    const q=c==="sales"?db.collection("sales").orderBy("ts","desc").limit(1000):db.collection(c);
-    q.onSnapshot(snap=>{
-      data[c]=new Map(snap.docs.map(x=>[x.id,x.data()]));
-      if(!snap.metadata.fromCache&&!loaded.has(c)){loaded.add(c);if(loaded.size===COLS.length){clearTimeout(timer);if(!st.readOnly)showBanner("")}}
-      scheduleRender();
-    },()=>{clearTimeout(timer);showBanner("Nawala ang koneksyon sa data. I-refresh ang page.");$("#conn").textContent="Offline"});
+    db.channel("kapehan-"+c)
+      .on("postgres_changes",{event:"*",schema:"public",table:c},payload=>{
+        if(payload.eventType==="DELETE"){
+          data[c].delete(payload.old.id);
+        }else if(payload.new){
+          data[c].set(payload.new.id,payload.new.body||{});
+        }
+        scheduleRender();
+      })
+      .subscribe();
   });
 }
 
