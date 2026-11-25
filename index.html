@@ -1012,7 +1012,7 @@ function menuForm(id){
    <div class="field"><label>Recipe ${m.sized?"(dami kada size)":"(per order)"}</label>
     ${m.sized?`<div class="recipe-head sized"><span></span>${SIZES.map(s=>`<span>${SIZE_SHORT_LABELS[s]}</span>`).join("")}<span></span></div>`:""}
     ${m.recipe.map((r,i)=>`<div class="recipe-line ${m.sized?"sized":""}"><select data-ri="${i}" aria-label="Inventory item"><option value="">Pumili…</option>${inv.map(x=>`<option value="${esc(x.id)}" ${x.id===r.inv?"selected":""}>${invKind(x)==="cup"?"Cup":"Ingredient"} · ${esc(x.name)} (${esc(x.unit)})</option>`).join("")}</select>
-      ${m.sized?SIZES.map(s=>`<input type="number" data-rq="${s}" data-riq="${i}" min="0" step="any" value="${esc(r["qty"+s])}" aria-label="${esc(SIZE_LABELS[s])} amount">`).join(""):`<input type="number" data-rq="qty" data-riq="${i}" min="0" step="any" value="${esc(r.qty)}" aria-label="Dami">`}
+      ${m.sized?SIZES.map(s=>`<input type="number" data-rq="qty${s}" data-riq="${i}" min="0" step="any" value="${esc(r["qty"+s])}" aria-label="${esc(SIZE_LABELS[s])} amount">`).join(""):`<input type="number" data-rq="qty" data-riq="${i}" min="0" step="any" value="${esc(r.qty)}" aria-label="Dami">`}
       <button class="btn small" data-rx="${i}" aria-label="Tanggalin">✕</button></div>`).join("")||'<div class="muted">Wala pang recipe items.</div>'}
     <button class="btn small" data-radd style="align-self:flex-start" ${inv.length?"":"disabled"}>+ Inventory item</button>
     ${inv.length?"":'<span class="muted">Mag-add muna ng ingredients o cups sa Inventory.</span>'}</div>
