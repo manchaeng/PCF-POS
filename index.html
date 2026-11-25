@@ -217,6 +217,24 @@ input[type=text]:focus-visible,input[type=number]:focus-visible,input[type=searc
 .recipe-line input[type=number]{width:100%;padding:6px}
 .receipt{font-family:var(--f-mono);font-size:13px;background:var(--surface-2);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:4px}
 .receipt .sumrow{font-size:13px}
+@media print{
+ body{margin:0!important;padding:0!important;background:#fff!important}
+ body::before,body>*:not(#receipt){display:none!important}
+ #receipt{display:block!important;position:absolute!important;left:0!important;top:0!important;margin:0!important;padding:0!important;color:#000!important;background:#fff!important}
+ #receipt .receipt-copy{box-sizing:content-box;width:72mm;padding:4mm;color:#000;background:#fff;font:12px/1.35 monospace;break-after:page;page-break-after:always;break-inside:avoid;page-break-inside:avoid}
+ #receipt[data-paper="58"] .receipt-copy{width:50mm}
+ #receipt[data-paper="80"] .receipt-copy{width:72mm}
+ #receipt .receipt-copy:last-child{break-after:auto;page-break-after:auto}
+ #receipt .receipt-header,#receipt .receipt-footer{text-align:center}
+ #receipt .receipt-header h2{margin:0;font-size:24px}
+ #receipt .receipt-header p,#receipt .receipt-footer p{margin:4px 0}
+ #receipt .receipt-row{display:flex;justify-content:space-between;gap:8px;margin:4px 0}
+ #receipt .receipt-row span:last-child{flex:none;text-align:right;white-space:nowrap}
+ #receipt .receipt-row.total{font-weight:bold;font-size:15px}
+ #receipt .item{margin:8px 0}
+ #receipt .item-details{display:flex;justify-content:space-between;gap:8px}
+ #receipt .item-name{overflow-wrap:anywhere;min-width:0}
+}
 
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:500;z-index:60;box-shadow:var(--shadow);max-width:calc(100vw - 32px);animation:toast-in .22s ease-out both}
 .toast.err{background:var(--crit);color:#fff}
@@ -339,6 +357,7 @@ table.tc tr.has td{background:var(--accent-soft)}
 </div>
 <div class="lock" id="lock" hidden></div>
 <div id="modalroot"></div>
+<div id="receipt" hidden aria-hidden="true"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -362,6 +381,7 @@ const UNITS=["g","kg","ml","L","pcs","pack"];
 const COLS=["inventory","menu","sales","notifications","staff","employees","timecards","payroll","settings"];
 const MEKEY="kapehan-pos-me";
 const CUP_SIZE_SETTING="cup-size-assignments";
+const RECEIPT_PRINT_KEY="kapehan-pos-receipt-print";
 
 const data={inventory:new Map(),menu:new Map(),sales:new Map(),notifications:new Map(),staff:new Map(),employees:new Map(),timecards:new Map(),payroll:new Map(),settings:new Map()};
 const st={meId:(()=>{try{return localStorage.getItem(MEKEY)||""}catch(e){return""}})(),login:{pick:null,pin:"",fails:0,until:0},view:"dashboard",cart:[],disc:"none",discCustom:"",pay:"Cash",tendered:"",gref:"",invQ:"",invF:"all",invGroup:"all",period:"weekly",rankBy:"qty",cat:"Espresso",override:false,readOnly:false};
@@ -375,6 +395,62 @@ const peso0=n=>{n=Math.round(Number(n)||0);return (n<0?"−":"")+"₱"+Math.abs(
 const fnum=n=>(Math.round((Number(n)||0)*100)/100).toLocaleString("en-PH",{maximumFractionDigits:2});
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function receiptPrintSettings(){
+  const defaults={copies:1,paper:"58",includeCashier:true};
+  try{
+    const saved=JSON.parse(localStorage.getItem(RECEIPT_PRINT_KEY)||"null");
+    if(!saved||typeof saved!=="object")return defaults;
+    return{copies:Math.max(1,Math.min(10,Math.round(Number(saved.copies)||1))),paper:saved.paper==="80"?"80":"58",includeCashier:saved.includeCashier!==false};
+  }catch(e){console.error("Could not load receipt print settings:",e);return defaults}
+}
+function saveReceiptPrintSettings(settings){
+  try{localStorage.setItem(RECEIPT_PRINT_KEY,JSON.stringify(settings))}
+  catch(e){console.error("Could not save receipt print settings:",e);toast("Hindi na-save ang print settings. Gagamitin ito sa kasalukuyang resibo lang.",true)}
+}
+function receiptText(tag,className,value){
+  const el=document.createElement(tag);
+  if(className)el.className=className;
+  if(value!=null)el.textContent=String(value);
+  return el;
+}
+function setReceiptPageSize(paper){
+  let style=$("#receiptPageRule");
+  if(!style){style=document.createElement("style");style.id="receiptPageRule";document.head.appendChild(style)}
+  style.textContent="@page{size:"+(paper==="58"?"58mm":"80mm")+" auto;margin:0}";
+}
+function buildReceiptCopy(sale,receiptId,includeCashier){
+  const copy=receiptText("section","receipt-copy");
+  const header=receiptText("div","receipt-header");
+  header.append(receiptText("h2","","KAPEHAN"),receiptText("p","","SALES RECEIPT"),receiptText("p","",new Date(sale.ts).toLocaleString("en-PH")));
+  copy.appendChild(header);
+  const row=(label,value,extra)=>{const el=receiptText("div","receipt-row"+(extra?" "+extra:""));el.append(receiptText("span","",label),receiptText("span","",value));copy.appendChild(el)};
+  row("Receipt #",receiptId.toUpperCase());
+  if(includeCashier&&sale.cashierName)row("Cashier",sale.cashierName);
+  copy.appendChild(document.createElement("hr"));
+  const items=document.createElement("div");
+  sale.items.forEach(i=>{
+    const qty=Number(i.qty)||0,addons=Array.isArray(i.addons)?i.addons:[],addonEach=addons.reduce((n,a)=>n+(Number(a.price)||0),0);
+    const item=document.createElement("div");item.className="item";
+    const details=receiptText("div","item-details");
+    details.append(receiptText("span","item-name",`${qty}x ${i.name}${i.size?" ("+(SIZE_LABELS[i.size]||i.size)+")":""}`),receiptText("span","",peso(Math.max(0,(Number(i.unit)||0)-addonEach)*qty)));
+    item.appendChild(details);
+    addons.forEach(a=>{const addOn=receiptText("div","item-details");addOn.append(receiptText("span","item-name",`  + ${a.name} x ${qty}`),receiptText("span","",peso((Number(a.price)||0)*qty)));item.appendChild(addOn)});
+    items.appendChild(item);
+  });
+  copy.appendChild(items);
+  copy.appendChild(document.createElement("hr"));
+  row("Subtotal",peso(sale.subtotal));
+  if(sale.discount)row(sale.discountLabel||"Discount",peso(-Math.abs(Number(sale.discount)||0)));
+  row("TOTAL",peso(sale.total),"total");
+  row("Payment",sale.payment);
+  if(sale.payment==="Cash"){row("Cash received",peso(sale.tendered));row("Change",peso(sale.change))}
+  if(sale.ref)row("GCash ref",sale.ref);
+  copy.appendChild(document.createElement("hr"));
+  const footer=receiptText("div","receipt-footer");
+  footer.appendChild(receiptText("p","","Thank you for your purchase!"));
+  copy.appendChild(footer);
+  return copy;
+}
 const list=c=>[...data[c].entries()].map(([id,d])=>Object.assign({id},d));
 const dayStart=(t=Date.now())=>{const d=new Date(t);d.setHours(0,0,0,0);return d.getTime()};
 const DAY=864e5;
@@ -742,12 +818,14 @@ function checkout(){
       <div class="foot"><button class="btn" data-close>Bumalik</button><button class="btn primary" data-go>Ituloy ang checkout</button></div>`,el=>{el.querySelector("[data-go]").onclick=()=>{st.override=true;closeModal();checkout()}});
     return;
   }
+  const saleId=uid();
   const sale={ts:Date.now(),items:st.cart.map(l=>({menuId:l.menuId,name:l.name,size:l.size,qty:l.qty,unit:l.unit,addons:l.addons})),
     subtotal:T.sub,discount:T.d,discountLabel:T.label,total:T.total,payment:st.pay};
   const cashier=me();if(cashier){sale.cashierId=cashier.id;sale.cashierName=cashier.name}
   if(st.pay==="Cash"){sale.tendered=tend;sale.change=Math.round((tend-T.total)*100)/100}
   if(st.pay==="GCash"&&st.gref)sale.ref=st.gref;
-  put("sales",uid(),sale);
+  const printSettings=receiptPrintSettings();
+  put("sales",saleId,sale);
   Object.entries(u).forEach(([id,need])=>{const i=data.inventory.get(id);if(i)setStock(id,(Number(i.stock)||0)-need)});
   st.cart=[];st.tendered="";st.gref="";st.disc="none";st.discCustom="";st.override=false;
   openModal(`<h2>Bayad na ✓</h2><div class="receipt">
@@ -757,7 +835,27 @@ function checkout(){
     ${sale.payment==="Cash"?`<div class="sumrow"><span>Cash</span><span>${peso(sale.tendered)}</span></div><div class="sumrow" style="font-weight:700"><span>Sukli</span><span>${peso(sale.change)}</span></div>`:""}
     ${sale.ref?`<div class="sumrow"><span>GCash ref</span><span>${esc(sale.ref)}</span></div>`:""}
    </div><p class="muted" style="margin:0">Na-record ang sale at nabawasan na ang recipe items, selected add-ons, at assigned cups sa Inventory.</p>
-   <div class="foot"><button class="btn primary" data-close>Bagong order</button></div>`);
+   <div class="form2" style="align-items:end">
+    <label class="field"><span class="label">Copies</span><select data-print-copies>${Array.from({length:10},(_,i)=>i+1).map(n=>`<option value="${n}">${n}</option>`).join("")}</select></label>
+    <label class="field"><span class="label">Receipt width</span><select data-print-paper><option value="58">58 mm</option><option value="80">80 mm</option></select></label>
+   </div>
+   <label class="check" style="align-self:flex-start"><input type="checkbox" data-print-cashier><span>Include cashier name</span></label>
+   <p class="muted" style="font-size:12px;margin:0">Choose the matching printer width and turn off browser headers and footers in the print dialog.</p>
+   <div class="foot"><button class="btn" data-print>Print receipt</button><button class="btn primary" data-close>Bagong order</button></div>`,el=>{
+    el.querySelector("[data-print-copies]").value=String(printSettings.copies);
+    el.querySelector("[data-print-paper]").value=printSettings.paper;
+    el.querySelector("[data-print-cashier]").checked=printSettings.includeCashier;
+    el.querySelector("[data-print]").onclick=()=>{
+      const settings={copies:Math.max(1,Math.min(10,Number(el.querySelector("[data-print-copies]").value)||1)),paper:el.querySelector("[data-print-paper]").value==="58"?"58":"80",includeCashier:el.querySelector("[data-print-cashier]").checked};
+      saveReceiptPrintSettings(settings);
+      setReceiptPageSize(settings.paper);
+      const printRoot=$("#receipt");
+      printRoot.dataset.paper=settings.paper;
+      printRoot.replaceChildren();
+      for(let i=0;i<settings.copies;i++)printRoot.appendChild(buildReceiptCopy(sale,saleId,settings.includeCashier));
+      window.print();
+    };
+  });
 }
 
 /* ---------- INVENTORY ---------- */
