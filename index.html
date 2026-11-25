@@ -357,13 +357,14 @@ const CASHIER_VIEWS=["dashboard","pos","inventory"];
 const ACCESS_OPTIONS=[["dashboard","Dashboard"],["pos","POS / Cashier"],["inventory","Inventory"],["restock","Restock inventory"],["reports","Reports"],["menu","Menu management"],["salary","Salary & payroll"]];
 const DEFAULT_CASHIER_ACCESS=[...CASHIER_VIEWS,"restock"];
 const ACCESS_LABELS=Object.fromEntries(ACCESS_OPTIONS);
-const OWNER_ONLY=["inv-new","inv-edit","inv-del","menu-new","menu-edit","menu-del","staff-new","staff-edit","staff-toggle","staff-del","sale-del","n-clear"];
+const OWNER_ONLY=["inv-new","inv-edit","inv-del","cup-map-save","menu-new","menu-edit","menu-del","staff-new","staff-edit","staff-toggle","staff-del","sale-del","n-clear"];
 const UNITS=["g","kg","ml","L","pcs","pack"];
 const COLS=["inventory","menu","sales","notifications","staff","employees","timecards","payroll","settings"];
 const MEKEY="kapehan-pos-me";
+const CUP_SIZE_SETTING="cup-size-assignments";
 
 const data={inventory:new Map(),menu:new Map(),sales:new Map(),notifications:new Map(),staff:new Map(),employees:new Map(),timecards:new Map(),payroll:new Map(),settings:new Map()};
-const st={meId:(()=>{try{return localStorage.getItem(MEKEY)||""}catch(e){return""}})(),login:{pick:null,pin:"",fails:0,until:0},view:"dashboard",cart:[],disc:"none",discCustom:"",pay:"Cash",tendered:"",gref:"",invQ:"",invF:"all",period:"weekly",rankBy:"qty",cat:"Espresso",override:false,readOnly:false};
+const st={meId:(()=>{try{return localStorage.getItem(MEKEY)||""}catch(e){return""}})(),login:{pick:null,pin:"",fails:0,until:0},view:"dashboard",cart:[],disc:"none",discCustom:"",pay:"Cash",tendered:"",gref:"",invQ:"",invF:"all",invGroup:"all",period:"weekly",rankBy:"qty",cat:"Espresso",override:false,readOnly:false};
 let db=null, mode="connecting", loaded=new Set();
 
 /* ---------- helpers ---------- */
@@ -378,6 +379,9 @@ const list=c=>[...data[c].entries()].map(([id,d])=>Object.assign({id},d));
 const dayStart=(t=Date.now())=>{const d=new Date(t);d.setHours(0,0,0,0);return d.getTime()};
 const DAY=864e5;
 function invStatus(i){const s=Number(i.stock)||0;if(s<=0)return"out";if(s<=Number(i.threshold||0))return"low";return"ok"}
+function invKind(i){return i.kind==="cup"||(!i.kind&&/\bcups?\b/i.test(i.name||""))?"cup":"ingredient"}
+function cupAssignments(){const setting=data.settings.get(CUP_SIZE_SETTING);return setting&&setting.bySize||{}}
+function assignedCup(size,assignments){const id=assignments[size],item=id&&data.inventory.get(id);return item&&invKind(item)==="cup"&&item.unit==="pcs"?{id,item}:null}
 const statusChip=s=>s==="out"?'<span class="chip out">Ubos na</span>':s==="low"?'<span class="chip low">Paubos</span>':'<span class="chip ok">OK</span>';
 function priceOf(m,size){
   if(!m.sized)return Number(m.price||0);
@@ -615,7 +619,7 @@ function vDash(){
   const top=rankItems(todayS).slice(0,5);
   const emptyShop=!inv.length&&!data.menu.size;
   return `
-  ${emptyShop?`<div class="panel"><h2>Bagong shop?</h2><p class="muted">Mag-add muna ng ingredients sa <a href="#inventory">Inventory</a>, tapos ng drinks at recipe sa <a href="#menu">Menu</a>. Pagkatapos, pwede ka nang mag-benta sa POS.</p></div>`:""}
+  ${emptyShop?`<div class="panel"><h2>Bagong shop?</h2><p class="muted">Mag-add muna ng ingredients at cups sa <a href="#inventory">Inventory</a>, tapos ng drinks at recipe sa <a href="#menu">Menu</a>. Pagkatapos, pwede ka nang mag-benta sa POS.</p></div>`:""}
   <div class="kpis">
     <div class="kpi"><span class="label">Benta ngayon</span><span class="v">${peso0(rev)}</span><span class="d">${diff==null?"Walang benta kahapon":(diff>=0?"▲ ":"▼ ")+Math.abs(diff)+"% vs kahapon ("+peso0(yrev)+")"}</span></div>
     <div class="kpi"><span class="label">Orders</span><span class="v">${todayS.length}</span><span class="d">${todayS.length?"Avg "+peso0(rev/todayS.length)+" / order":"Wala pang order"}</span></div>
@@ -643,9 +647,17 @@ function vDash(){
 
 /* ---------- POS ---------- */
 function usage(lines){
-  const u={};
-  const add=(m,size,qty)=>(m&&m.recipe||[]).forEach(r=>{if(!r.inv)return;const q=recipeAmount(r,size)*qty;u[r.inv]=(u[r.inv]||0)+q});
-  lines.forEach(l=>{add(data.menu.get(l.menuId),l.size,l.qty);(l.addons||[]).forEach(a=>add(data.menu.get(a.id),null,l.qty))});
+  const u={},assignments=cupAssignments();
+  const add=(m,size,qty,skipCups)=>{(m&&m.recipe||[]).forEach(r=>{if(!r.inv)return;
+    const item=skipCups&&data.inventory.get(r.inv);if(item&&invKind(item)==="cup")return;
+    const q=recipeAmount(r,size)*qty;u[r.inv]=(u[r.inv]||0)+q})};
+  lines.forEach(l=>{
+    const assigned=l.size&&assignedCup(l.size,assignments);
+    const useAssignedCup=!!assigned;
+    add(data.menu.get(l.menuId),l.size,l.qty,useAssignedCup);
+    if(useAssignedCup)u[assigned.id]=(u[assigned.id]||0)+l.qty;
+    (l.addons||[]).forEach(a=>add(data.menu.get(a.id),null,l.qty,false));
+  });
   return u;
 }
 function shortages(u){return Object.entries(u).map(([id,need])=>{const i=data.inventory.get(id);return{id,need,name:i?i.name:"(deleted item)",have:i?Number(i.stock)||0:0,unit:i?i.unit:""}}).filter(x=>x.have<x.need)}
@@ -718,7 +730,7 @@ function checkout(){
   if(st.pay==="Cash"&&tend<T.total){toast("Kulang ang cash na tinanggap. Ilagay ang halaga o pindutin ang Exact.",true);$("#tend")&&$("#tend").focus();return}
   const u=usage(st.cart), sh=shortages(u);
   if(sh.length&&!st.override){
-    openModal(`<h2>Kulang ang stock</h2><p class="muted">Base sa recipe, hindi sapat ang mga ito para sa order:</p>
+    openModal(`<h2>Kulang ang stock</h2><p class="muted">Base sa recipe at cup assignments, hindi sapat ang mga ito para sa order:</p>
       <div class="rows">${sh.map(s=>`<div class="row"><div class="grow"><b>${esc(s.name)}</b><div class="sub num">Kailangan ${fnum(s.need)} ${esc(s.unit)}, meron ${fnum(s.have)}</div></div></div>`).join("")}</div>
       <p class="muted">Kung may stock pa talaga (hindi lang na-update), pwede mong ituloy. Magiging 0 ang stock ng mga ito.</p>
       <div class="foot"><button class="btn" data-close>Bumalik</button><button class="btn primary" data-go>Ituloy ang checkout</button></div>`,el=>{el.querySelector("[data-go]").onclick=()=>{st.override=true;closeModal();checkout()}});
@@ -738,40 +750,65 @@ function checkout(){
     <div class="sumrow" style="font-weight:700;border-top:1px dashed var(--line);padding-top:6px"><span>TOTAL · ${esc(sale.payment)}</span><span>${peso(sale.total)}</span></div>
     ${sale.payment==="Cash"?`<div class="sumrow"><span>Cash</span><span>${peso(sale.tendered)}</span></div><div class="sumrow" style="font-weight:700"><span>Sukli</span><span>${peso(sale.change)}</span></div>`:""}
     ${sale.ref?`<div class="sumrow"><span>GCash ref</span><span>${esc(sale.ref)}</span></div>`:""}
-   </div><p class="muted" style="margin:0">Na-record ang sale at nabawasan na ang ingredients sa Inventory.</p>
+   </div><p class="muted" style="margin:0">Na-record ang sale at nabawasan na ang recipe items at assigned cups sa Inventory.</p>
    <div class="foot"><button class="btn primary" data-close>Bagong order</button></div>`);
 }
 
 /* ---------- INVENTORY ---------- */
 function vInv(){
   const all=list("inventory").sort((a,b)=>a.name.localeCompare(b.name));
+  const counts={all:all.length,ingredients:all.filter(i=>invKind(i)==="ingredient").length,cups:all.filter(i=>invKind(i)==="cup").length};
+  const cupItems=all.filter(i=>invKind(i)==="cup"),assignments=cupAssignments();
+  const invalidCupSizes=SIZES.filter(s=>{const id=assignments[s],item=id&&data.inventory.get(id);return !!id&&(!item||invKind(item)!=="cup"||item.unit!=="pcs")});
+  const scoped=all.filter(i=>st.invGroup==="all"||(st.invGroup==="cups"?invKind(i)==="cup":invKind(i)==="ingredient"));
   const q=st.invQ.toLowerCase();
-  const rows=all.filter(i=>(!q||i.name.toLowerCase().includes(q))&&(st.invF==="all"||(st.invF==="low"?invStatus(i)!=="ok":invStatus(i)===st.invF)));
-  const cnt=k=>all.filter(i=>k==="low"?invStatus(i)!=="ok":invStatus(i)===k).length;
+  const rows=scoped.filter(i=>(!q||String(i.name||"").toLowerCase().includes(q))&&(st.invF==="all"||(st.invF==="low"?invStatus(i)!=="ok":invStatus(i)===st.invF)));
+  const cnt=k=>scoped.filter(i=>k==="low"?invStatus(i)!=="ok":invStatus(i)===k).length;
   return `<div class="toolbar">
-    <input type="search" id="invQ" placeholder="Hanapin ang ingredient…" value="${esc(st.invQ)}" data-act="invQ" style="flex:1;min-width:160px;max-width:320px" aria-label="Search">
-    <div class="seg" role="group" aria-label="Filter">${[["all","Lahat "+all.length],["low","Low "+cnt("low")],["out","Ubos "+cnt("out")]].map(([k,l])=>`<button data-act="invF" data-f="${k}" aria-pressed="${st.invF===k}">${l}</button>`).join("")}</div>
-    <span class="grow"></span><button class="btn primary" data-act="inv-new" ${st.readOnly?"disabled":""}>+ Add item</button></div>
+    <div class="seg" role="group" aria-label="Inventory type">${[["all","All "+counts.all],["ingredients","Ingredients "+counts.ingredients],["cups","Cups "+counts.cups]].map(([k,l])=>`<button data-act="invGroup" data-v="${k}" aria-pressed="${st.invGroup===k}">${l}</button>`).join("")}</div>
+    <input type="search" id="invQ" placeholder="Search inventory…" value="${esc(st.invQ)}" data-act="invQ" style="flex:1;min-width:160px;max-width:320px" aria-label="Search inventory">
+    <div class="seg" role="group" aria-label="Filter">${[["all","Lahat "+scoped.length],["low","Low "+cnt("low")],["out","Ubos "+cnt("out")]].map(([k,l])=>`<button data-act="invF" data-f="${k}" aria-pressed="${st.invF===k}">${l}</button>`).join("")}</div>
+    <span class="grow"></span><button class="btn primary" data-act="inv-new" ${st.readOnly?"disabled":""}>+ Add ${st.invGroup==="cups"?"cup":"item"}</button></div>
+  ${st.invGroup==="cups"?`<div class="panel" style="margin-bottom:12px"><div class="panel-head"><h2>Cup assignment by order size</h2></div>
+    <p class="muted" style="margin:0 0 10px">Assign which cup to deduct for each size. POS deducts 1 pc per drink. For sizes with an assigned cup, recipe cups are skipped to avoid double deduction; leave a size unassigned to use its recipe cup instead.</p>
+    ${invalidCupSizes.length?`<p class="muted" style="margin:0 0 10px">Invalid assignment for ${invalidCupSizes.map(s=>SIZE_LABELS[s]).join(", ")}. Choose a Cups item measured in pcs and save; invalid assignments are not deducted.</p>`:""}
+    <div class="form2">${SIZES.map(s=>`<div class="field"><label for="cup-map-${s}">${SIZE_LABELS[s]}</label><select id="cup-map-${s}" ${st.readOnly||!isOwner()?"disabled":""}><option value="">No assigned cup (use recipe)</option>${cupItems.map(i=>`<option value="${esc(i.id)}" ${assignments[s]===i.id?"selected":""}>${esc(i.name)} (${esc(i.unit)})</option>`).join("")}</select></div>`).join("")}</div>
+    <div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="btn primary" data-act="cup-map-save" ${st.readOnly||!isOwner()?"disabled":""}>Save cup assignments</button></div></div>`:""}
   <div class="tablewrap"><table><thead><tr><th>Item</th><th class="r">Stock</th><th>Level</th><th class="r">Min</th><th>Status</th><th class="r">Actions</th></tr></thead><tbody>
   ${rows.length?rows.map(i=>{const s=invStatus(i);const pct=Math.min(100,(Number(i.stock)||0)/Math.max(1,(Number(i.threshold)||1)*3)*100);
-   return `<tr class="${s==="ok"?"":s}"><td><b>${esc(i.name)}</b></td><td class="r num">${fnum(i.stock)} ${esc(i.unit)}</td><td><div class="meter"><i style="width:${pct}%"></i></div></td><td class="r num muted">${fnum(i.threshold)} ${esc(i.unit)}</td><td>${statusChip(s)}</td>
+   return `<tr class="${s==="ok"?"":s}"><td><b>${esc(i.name)}</b> <span class="chip ${invKind(i)==="cup"?"best":"ok"}">${invKind(i)==="cup"?"Cup":"Ingredient"}</span></td><td class="r num">${fnum(i.stock)} ${esc(i.unit)}</td><td><div class="meter"><i style="width:${pct}%"></i></div></td><td class="r num muted">${fnum(i.threshold)} ${esc(i.unit)}</td><td>${statusChip(s)}</td>
    <td><div class="actions"><button class="btn small primary" data-act="restock" data-id="${esc(i.id)}" ${st.readOnly?"disabled":""}>Restock</button><button class="btn small" data-act="inv-edit" data-id="${esc(i.id)}" ${st.readOnly?"disabled":""}>Edit</button><button class="btn small danger" data-act="inv-del" data-id="${esc(i.id)}" ${st.readOnly?"disabled":""}>Delete</button></div></td></tr>`}).join("")
-   :`<tr><td colspan="6" class="empty">${all.length?"Walang tumugma sa filter.":"Wala pang ingredients. Pindutin ang + Add item para magsimula (hal. Espresso beans, Fresh milk, Cups)."}</td></tr>`}
+   :`<tr><td colspan="6" class="empty">${scoped.length?"Walang tumugma sa filter.":st.invGroup==="cups"?"Wala pang cups. Pumili ng + Add cup para magdagdag.":st.invGroup==="ingredients"?"Wala pang ingredients. Pumili ng + Add item para magdagdag.":"Wala pang inventory items. Pindutin ang + Add item para magsimula."}</td></tr>`}
   </tbody></table></div>`;
 }
+function saveCupAssignments(){
+  const bySize={};let invalid=null;
+  SIZES.forEach(s=>{
+    const id=$("#cup-map-"+s).value,item=id&&data.inventory.get(id);
+    if(id&&(!item||invKind(item)!=="cup"||item.unit!=="pcs")){invalid=item||{name:"Selected cup"};return}
+    if(id)bySize[s]=id;
+  });
+  if(invalid){toast((invalid.name||"Selected cup")+" must be a Cups item measured in pcs.",true);return}
+  put("settings",CUP_SIZE_SETTING,{bySize,updated:Date.now()});
+  toast("Na-save ang cup assignments.");
+}
 function invForm(id){
-  const i=id?data.inventory.get(id):{name:"",unit:"g",stock:0,threshold:0};
-  openModal(`<h2>${id?"Edit item":"Bagong ingredient"}</h2>
+  const src=id?data.inventory.get(id):{name:"",kind:st.invGroup==="cups"?"cup":"ingredient",unit:st.invGroup==="cups"?"pcs":"g",stock:0,threshold:0};
+  if(!src)return;
+  const i=Object.assign({},src,{kind:invKind(src)});
+  openModal(`<h2>${id?"Edit item":"Bagong inventory item"}</h2>
    <div class="field"><label for="f-name">Pangalan</label><input type="text" id="f-name" value="${esc(i.name)}" placeholder="hal. Oat Milk"></div>
-   <div class="form2"><div class="field"><label for="f-unit">Unit</label><select id="f-unit">${UNITS.concat(UNITS.includes(i.unit)?[]:[i.unit]).map(u=>`<option ${u===i.unit?"selected":""}>${esc(u)}</option>`).join("")}</select></div>
+   <div class="form2"><div class="field"><label for="f-kind">Inventory group</label><select id="f-kind"><option value="ingredient" ${i.kind==="ingredient"?"selected":""}>Ingredient</option><option value="cup" ${i.kind==="cup"?"selected":""}>Cup</option></select></div>
+   <div class="field"><label for="f-unit">Unit</label><select id="f-unit">${UNITS.concat(UNITS.includes(i.unit)?[]:[i.unit]).map(u=>`<option ${u===i.unit?"selected":""}>${esc(u)}</option>`).join("")}</select></div>
    <div class="field"><label for="f-stock">Current stock</label><input type="number" id="f-stock" min="0" step="any" value="${esc(i.stock)}"></div>
    <div class="field"><label for="f-th">Min threshold (alert)</label><input type="number" id="f-th" min="0" step="any" value="${esc(i.threshold)}"></div></div>
-   <p class="muted" style="margin:0">Magbibigay ng notification kapag ang stock ay umabot o bumaba sa min threshold.</p>
+   <p class="muted" style="margin:0">Magbibigay ng notification kapag umabot o bumaba sa minimum ang stock. Para sa cups, gumamit ng isang item bawat uri (hal. 12oz hot o 12oz iced) at unit na pcs. I-assign ang cups sa order sizes sa Cups tab; hindi na kailangang ilagay sa recipe para sa mga size na naka-assign.</p>
    <div class="foot"><button class="btn" data-close>Cancel</button><button class="btn primary" data-save>Save</button></div>`,el=>{
     el.querySelector("#f-name").focus();
+    el.querySelector("#f-kind").onchange=()=>{const unit=el.querySelector("#f-unit");if(el.querySelector("#f-kind").value==="cup"&&unit.value==="g")unit.value="pcs"};
     el.querySelector("[data-save]").onclick=()=>{
       const name=el.querySelector("#f-name").value.trim();if(!name){toast("Lagyan ng pangalan ang item.",true);return}
-      const body={name,unit:el.querySelector("#f-unit").value,stock:Math.max(0,Number(el.querySelector("#f-stock").value)||0),threshold:Math.max(0,Number(el.querySelector("#f-th").value)||0),updated:Date.now()};
+      const body={name,kind:el.querySelector("#f-kind").value,unit:el.querySelector("#f-unit").value,stock:Math.max(0,Number(el.querySelector("#f-stock").value)||0),threshold:Math.max(0,Number(el.querySelector("#f-th").value)||0),updated:Date.now()};
       const key=id||name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)+"-"+uid().slice(-4);
       const prevStock=id?Number(i.stock)||0:Infinity, prevTh=id?Number(i.threshold)||0:-1;
       put("inventory",key,body);
@@ -930,7 +967,7 @@ function staffDelete(id){const s=data.staff.get(id);if(!s)return;
 /* ---------- MENU ---------- */
 function vMenu(){
   const menu=list("menu");
-  return `<div class="toolbar"><p class="muted" style="margin:0;max-width:62ch">Bawat drink ay may recipe. Kapag nabenta sa POS, ang ingredient amount para sa napiling size ang mababawasan sa Inventory.</p><span class="grow"></span><button class="btn primary" data-act="menu-new" ${st.readOnly?"disabled":""}>+ Add drink / item</button></div>
+  return `<div class="toolbar"><p class="muted" style="margin:0;max-width:62ch">Bawat drink ay may recipe. Kapag nabenta sa POS, mababawasan ang recipe ingredients at ang cup na naka-assign sa napiling size.</p><span class="grow"></span><button class="btn primary" data-act="menu-new" ${st.readOnly?"disabled":""}>+ Add drink / item</button></div>
   ${CATS.map(c=>{const items=menu.filter(m=>m.category===c).sort((a,b)=>a.name.localeCompare(b.name));if(!items.length)return"";
     return `<div><div class="label" style="margin-bottom:8px">${c} · ${items.length}</div><div class="mcards">${items.map(m=>`<div class="mcard">
       <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><h2>${esc(m.name)}</h2>${m.active===false?'<span class="chip low">Hidden</span>':""}</div>
@@ -955,11 +992,11 @@ function menuForm(id){
      :`<div class="field"><label for="m-price">Price ₱</label><input type="number" id="m-price" min="0" step="any" value="${esc(m.price)}"></div>`}
    <div class="field"><label>Recipe ${m.sized?"(dami kada size)":"(per order)"}</label>
     ${m.sized?`<div class="recipe-head sized"><span></span>${SIZES.map(s=>`<span>${SIZE_SHORT_LABELS[s]}</span>`).join("")}<span></span></div>`:""}
-    ${m.recipe.map((r,i)=>`<div class="recipe-line ${m.sized?"sized":""}"><select data-ri="${i}" aria-label="Ingredient"><option value="">Pumili…</option>${inv.map(x=>`<option value="${esc(x.id)}" ${x.id===r.inv?"selected":""}>${esc(x.name)} (${esc(x.unit)})</option>`).join("")}</select>
+    ${m.recipe.map((r,i)=>`<div class="recipe-line ${m.sized?"sized":""}"><select data-ri="${i}" aria-label="Inventory item"><option value="">Pumili…</option>${inv.map(x=>`<option value="${esc(x.id)}" ${x.id===r.inv?"selected":""}>${invKind(x)==="cup"?"Cup":"Ingredient"} · ${esc(x.name)} (${esc(x.unit)})</option>`).join("")}</select>
       ${m.sized?SIZES.map(s=>`<input type="number" data-rq="${s}" data-riq="${i}" min="0" step="any" value="${esc(r["qty"+s])}" aria-label="${esc(SIZE_LABELS[s])} amount">`).join(""):`<input type="number" data-rq="qty" data-riq="${i}" min="0" step="any" value="${esc(r.qty)}" aria-label="Dami">`}
-      <button class="btn small" data-rx="${i}" aria-label="Tanggalin">✕</button></div>`).join("")||'<div class="muted">Wala pang ingredients.</div>'}
-    <button class="btn small" data-radd style="align-self:flex-start" ${inv.length?"":"disabled"}>+ Ingredient</button>
-    ${inv.length?"":'<span class="muted">Mag-add muna ng ingredients sa Inventory.</span>'}</div>
+      <button class="btn small" data-rx="${i}" aria-label="Tanggalin">✕</button></div>`).join("")||'<div class="muted">Wala pang recipe items.</div>'}
+    <button class="btn small" data-radd style="align-self:flex-start" ${inv.length?"":"disabled"}>+ Inventory item</button>
+    ${inv.length?"":'<span class="muted">Mag-add muna ng ingredients o cups sa Inventory.</span>'}</div>
    <label class="check"><input type="checkbox" id="m-active" ${m.active!==false?"checked":""}><span class="grow">Ipakita sa POS</span></label>
    <div class="foot"><button class="btn" data-close>Cancel</button><button class="btn primary" data-save>Save</button></div>`,el=>{
     const sync=()=>{m.name=el.querySelector("#m-name").value;m.category=el.querySelector("#m-cat").value;m.sized=el.querySelector("#m-sized").checked;m.active=el.querySelector("#m-active").checked;
@@ -971,7 +1008,7 @@ function menuForm(id){
     el.querySelector("[data-save]").onclick=()=>{sync();
       if(!m.name.trim()){toast("Lagyan ng pangalan ang item.",true);return}
       if(m.sized?!SIZES.some(s=>m.prices[s]>0):!(m.price>0)){toast("Lagyan ng presyo.",true);return}
-      if(m.recipe.some(r=>(m.sized?SIZES.map(s=>Number(r["qty"+s])||0):[Number(r.qty)||0]).some(q=>q<0))){toast("Hindi pwedeng negative ang dami ng ingredient.",true);return}
+      if(m.recipe.some(r=>(m.sized?SIZES.map(s=>Number(r["qty"+s])||0):[Number(r.qty)||0]).some(q=>q<0))){toast("Hindi pwedeng negative ang dami ng recipe item.",true);return}
       const body={name:m.name.trim(),category:m.category,sized:m.sized,active:m.active,recipe:m.recipe.filter(r=>r.inv&&(m.sized?SIZES.some(s=>Number(r["qty"+s])>0):Number(r.qty)>0)).map(r=>m.sized?{inv:r.inv,qtySH:Number(r.qtySH)||0,qtySI:Number(r.qtySI)||0,qtyM:Number(r.qtyM)||0,qtyL:Number(r.qtyL)||0}:{inv:r.inv,qty:Number(r.qty)||0})};
       if(m.sized)body.prices={SH:m.prices.SH,SI:m.prices.SI,M:m.prices.M,L:m.prices.L};else body.price=m.price;
       put("menu",id||body.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)+"-"+uid().slice(-4),body);closeModal();toast("Na-save ang "+body.name)};
@@ -1288,7 +1325,7 @@ document.addEventListener("click",e=>{
     case"staff-toggle":staffToggle(id);break;
     case"staff-del":staffDelete(id);break;
     case"sale-del":saleDelete(id);return;
-    case"go":st.invF=b.dataset.filter||"all";location.hash=b.dataset.to;break;
+    case"go":st.invF=b.dataset.filter||"all";st.invGroup="all";location.hash=b.dataset.to;break;
     case"cat":st.cat=b.dataset.c;scheduleRender();break;
     case"pick":pickItem(id);break;
     case"qty":{const l=st.cart[b.dataset.i];l.qty+=Number(b.dataset.d);if(l.qty<=0)st.cart.splice(b.dataset.i,1);st.override=false;scheduleRender();break}
@@ -1296,7 +1333,9 @@ document.addEventListener("click",e=>{
     case"pay":st.pay=b.dataset.p;scheduleRender();break;
     case"tendq":st.tendered=String(b.dataset.v);scheduleRender();break;
     case"checkout":checkout();break;
+    case"invGroup":st.invGroup=b.dataset.v;st.invF="all";scheduleRender();break;
     case"invF":st.invF=b.dataset.f;scheduleRender();break;
+    case"cup-map-save":saveCupAssignments();break;
     case"inv-new":invForm(null);break;
     case"inv-edit":invForm(id);break;
     case"inv-del":invDelete(id);break;
