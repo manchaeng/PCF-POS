@@ -319,6 +319,9 @@ const SIZES=["S","M","L"], MULT={S:0.75,M:1,L:1.25};
 const PAYS=["Cash","GCash","Card"];
 const VIEWS={dashboard:"Dashboard",pos:"POS / Cashier",inventory:"Inventory",reports:"Best Sellers & Reports",menu:"Menu Management",salary:"Salary",staff:"Staff"};
 const CASHIER_VIEWS=["dashboard","pos","inventory"];
+const ACCESS_OPTIONS=[["dashboard","Dashboard"],["pos","POS / Cashier"],["inventory","Inventory"],["restock","Restock inventory"],["reports","Reports"],["menu","Menu management"],["salary","Salary & payroll"]];
+const DEFAULT_CASHIER_ACCESS=[...CASHIER_VIEWS,"restock"];
+const ACCESS_LABELS=Object.fromEntries(ACCESS_OPTIONS);
 const OWNER_ONLY=["inv-new","inv-edit","inv-del","menu-new","menu-edit","menu-del","staff-new","staff-edit","staff-toggle","staff-del","n-clear"];
 const UNITS=["g","kg","ml","L","pcs","pack"];
 const COLS=["inventory","menu","sales","notifications","staff","employees","timecards","payroll","settings"];
@@ -464,14 +467,16 @@ function setStock(id,next){
 /* ---------- staff / login ---------- */
 function me(){const s=st.meId&&data.staff.get(st.meId);return s&&s.active!==false?Object.assign({id:st.meId},s):null}
 const isOwner=()=>{const m=me();return !!(m&&m.role==="owner")};
-const canView=v=>isOwner()||CASHIER_VIEWS.includes(v);
+const staffAccess=s=>(Array.isArray(s.access)?s.access:DEFAULT_CASHIER_ACCESS).filter(k=>ACCESS_OPTIONS.some(([key])=>key===k));
+const canView=v=>isOwner()||(!me()?CASHIER_VIEWS.includes(v):staffAccess(me()).includes(v));
+const canRestock=()=>isOwner()||!me()||staffAccess(me()).includes("restock");
 const initials=n=>String(n||"?").trim().split(/\s+/).map(w=>w[0]).slice(0,2).join("").toUpperCase();
 async function hashPin(salt,pin){
   const txt="kapehan:"+salt+":"+pin;
   try{const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(txt));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
   catch(e){let h=5381;for(let i=0;i<txt.length;i++)h=((h<<5)+h+txt.charCodeAt(i))>>>0;return "d"+h.toString(16)}
 }
-function setMe(id){st.meId=id||"";try{id?localStorage.setItem(MEKEY,id):localStorage.removeItem(MEKEY)}catch(e){}st.login={pick:null,pin:"",fails:0,until:0};if(id&&!canView(st.view))location.hash="pos";scheduleRender()}
+function setMe(id){st.meId=id||"";try{id?localStorage.setItem(MEKEY,id):localStorage.removeItem(MEKEY)}catch(e){}st.login={pick:null,pin:"",fails:0,until:0};if(id&&!canView(st.view))location.hash=Object.keys(VIEWS).find(canView)||"pos";scheduleRender()}
 function renderLock(){
   const lock=$("#lock");
   const ready=mode==="local"||(mode==="db"&&loaded.has("staff"));
@@ -530,7 +535,7 @@ function scheduleRender(){if(rq)return;rq=true;requestAnimationFrame(()=>{rq=fal
 function render(){
   renderLock();
   const m=me();
-  if(m&&!canView(st.view)){location.hash="pos";return}
+  if(m&&!canView(st.view)){st.view=Object.keys(VIEWS).find(canView)||"pos";location.hash=st.view}
   document.querySelectorAll(".rail a").forEach(a=>{a.setAttribute("aria-current",a.dataset.v===st.view?"page":"false");a.hidden=!canView(a.dataset.v)});
   const meEl=$("#me");meEl.hidden=!m;
   if(m)meEl.innerHTML=`<span>${esc(m.name)} <span class="role">${m.role==="owner"?"Owner":"Cashier"}</span></span><button class="btn small" data-act="logout" title="I-lock at palitan ang cashier">Lock</button>`;
@@ -542,7 +547,7 @@ function render(){
   const ae=document.activeElement, aid=ae&&ae.id, ss=ae&&ae.selectionStart;
   if(mode==="connecting"||(mode==="db"&&loaded.size<COLS.length&&!data.inventory.size&&!data.menu.size)){v.innerHTML='<div class="panel empty">Kinukuha ang data ng shop…</div>';return}
   v.innerHTML=({dashboard:vDash,pos:vPOS,inventory:vInv,reports:vReports,menu:vMenu,salary:vSalary,staff:vStaff})[st.view]();
-  hideOwnerOnly(v);
+  hideRestricted(v);
   if(aid){const el=document.getElementById(aid);if(el&&el!==ae){el.focus();try{if(ss!=null)el.setSelectionRange(ss,ss)}catch(e){}}}
 }
 function route(){const h=location.hash.slice(1);st.view=VIEWS[h]?h:"dashboard";scheduleRender();window.scrollTo(0,0)}
@@ -819,31 +824,38 @@ function byCashier(sales){
 function vStaff(){
   const staff=list("staff").sort((a,b)=>(a.active===false?1:0)-(b.active===false?1:0)||(a.role==="owner"?0:1)-(b.role==="owner"?0:1)||a.name.localeCompare(b.name));
   const t0=dayStart(),today=salesIn(t0,t0+DAY);
-  return `<div class="toolbar"><p class="muted" style="margin:0;max-width:62ch">Bawat staff ay may sariling 4-digit PIN. Ang Cashier ay may access lang sa Dashboard, POS at Inventory (pang-restock lang). Ang Owner ay may access sa lahat.</p><span class="grow"></span><button class="btn primary" data-act="staff-new">+ Add staff</button></div>
-  <div class="tablewrap"><table><thead><tr><th>Pangalan</th><th>Role</th><th>Status</th><th class="r">Orders ngayon</th><th class="r">Benta ngayon</th><th class="r">Actions</th></tr></thead><tbody>
+  return `<div class="toolbar"><p class="muted" style="margin:0;max-width:62ch">Pumili ng mga page at pahintulot sa restock para sa bawat employee. Staff management at pag-edit ng menu o inventory ay Owner lang. Ang access sa Salary ay nagbibigay ng access sa time cards at payroll.</p><span class="grow"></span><button class="btn primary" data-act="staff-new">+ Add staff</button></div>
+  <div class="tablewrap"><table><thead><tr><th>Pangalan</th><th>Role</th><th>Access</th><th>Status</th><th class="r">Orders ngayon</th><th class="r">Benta ngayon</th><th class="r">Actions</th></tr></thead><tbody>
   ${staff.map(s=>{const mine=today.filter(x=>x.cashierId===s.id);return `<tr><td><div style="display:flex;align-items:center;gap:10px"><span class="avatar" style="width:32px;height:32px;font-size:13px">${esc(initials(s.name))}</span><b>${esc(s.name)}</b>${s.id===st.meId?' <span class="muted">(ikaw)</span>':""}</div></td>
-   <td>${s.role==="owner"?'<span class="chip best">Owner</span>':'<span class="chip ok">Cashier</span>'}</td><td>${s.active===false?'<span class="chip out">Disabled</span>':'<span class="chip ok">Active</span>'}</td>
+   <td>${s.role==="owner"?'<span class="chip best">Owner</span>':'<span class="chip ok">Cashier</span>'}</td><td>${s.role==="owner"?"Full access":staffAccess(s).map(k=>esc(ACCESS_LABELS[k])).join(", ")||"No access"}</td><td>${s.active===false?'<span class="chip out">Disabled</span>':'<span class="chip ok">Active</span>'}</td>
    <td class="r num">${mine.length}</td><td class="r num">${peso0(sum(mine,x=>x.total))}</td>
    <td><div class="actions"><button class="btn small" data-act="staff-edit" data-id="${esc(s.id)}">Edit / PIN</button>${s.id===st.meId?"":`<button class="btn small" data-act="staff-toggle" data-id="${esc(s.id)}">${s.active===false?"Enable":"Disable"}</button><button class="btn small danger" data-act="staff-del" data-id="${esc(s.id)}">Delete</button>`}</div></td></tr>`}).join("")}
   </tbody></table></div>`;
 }
 const activeOwners=()=>list("staff").filter(s=>s.role==="owner"&&s.active!==false);
 function staffForm(id){
-  const s=id?data.staff.get(id):{name:"",role:"cashier"};
+  const s=id?data.staff.get(id):{name:"",role:"cashier"},access=staffAccess(s);
+  const accessFields=ACCESS_OPTIONS.map(([key,label])=>`<label class="check"><input type="checkbox" name="sf-access" value="${key}" ${access.includes(key)?"checked":""}><span>${label}</span></label>`).join("");
   openModal(`<h2>${id?"Edit "+esc(s.name):"Bagong staff"}</h2>
    <div class="field"><label for="sf-name">Pangalan</label><input type="text" id="sf-name" value="${esc(s.name)}" placeholder="hal. Mark"></div>
    <div class="field"><label for="sf-role">Role</label><select id="sf-role"><option value="cashier" ${s.role!=="owner"?"selected":""}>Cashier: Dashboard, POS, restock</option><option value="owner" ${s.role==="owner"?"selected":""}>Owner: lahat ng access</option></select></div>
+   <div class="field"><label>Employee access</label><div id="sf-access-list" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:6px">${accessFields}</div><span class="muted" id="sf-access-note" style="font-size:12px">Staff management at pag-edit/pagtanggal ng menu o inventory ay Owner lang.</span></div>
    <div class="form2"><div class="field"><label for="sf-pin">${id?"Bagong PIN (iwanang blangko kung walang palit)":"4-digit PIN"}</label><input type="password" id="sf-pin" inputmode="numeric" maxlength="4" autocomplete="off"></div>
    <div class="field"><label for="sf-pin2">Ulitin ang PIN</label><input type="password" id="sf-pin2" inputmode="numeric" maxlength="4" autocomplete="off"></div></div>
    <div class="foot"><button class="btn" data-close>Cancel</button><button class="btn primary" data-save>Save</button></div>`,el=>{
     el.querySelector("#sf-name").focus();
+    const roleField=el.querySelector("#sf-role"),accessList=el.querySelector("#sf-access-list"),accessNote=el.querySelector("#sf-access-note");
+    const syncAccess=()=>{const owner=roleField.value==="owner";accessList.querySelectorAll("input").forEach(input=>{input.disabled=owner});accessNote.textContent=owner?"Owner accounts always have full access. Staff management and shop-data editing remain Owner-only.":"Staff management and editing or deleting menu and inventory items remain Owner-only."};
+    roleField.onchange=syncAccess;syncAccess();
     el.querySelector("[data-save]").onclick=async()=>{
       const name=el.querySelector("#sf-name").value.trim(),role=el.querySelector("#sf-role").value,p=el.querySelector("#sf-pin").value,p2=el.querySelector("#sf-pin2").value;
       if(!name)return toast("Ilagay ang pangalan.",true);
       if((!id||p)&&!/^\d{4}$/.test(p))return toast("Ang PIN ay dapat 4 na numero.",true);
       if(p!==p2)return toast("Hindi magkapareho ang dalawang PIN.",true);
       if(id&&s.role==="owner"&&role!=="owner"&&activeOwners().length<=1)return toast("Kailangan ng kahit isang active na Owner.",true);
-      const body=Object.assign({},s,{name,role,active:s.active!==false});delete body.id;
+      const selectedAccess=[...accessList.querySelectorAll("input:checked")].map(input=>input.value);
+      if(role!=="owner"&&!selectedAccess.some(k=>VIEWS[k]))return toast("Pumili ng kahit isang page para sa employee.",true);
+      const body=Object.assign({},s,{name,role,active:s.active!==false});if(role!=="owner")body.access=selectedAccess;delete body.id;
       if(p){body.salt=uid();body.pinHash=await hashPin(body.salt,p)}
       put("staff",id||"staff-"+uid(),body);closeModal();toast(id?"Na-save ang "+name:"Na-add si "+name);
     };
@@ -1142,7 +1154,7 @@ function salChart(){
 /* salary events */
 document.addEventListener("click",e=>{
   const b=e.target.closest("[data-sal]");if(!b)return;
-  if(!isOwner()&&me()){toast("Owner lang ang pwedeng gumawa nito.",true);return}
+  if(!canView("salary")&&me()){toast("Wala kang access sa Salary.",true);return}
   const a=b.dataset.sal,id=b.dataset.id;
   switch(a){
     case"tab":sal.tab=b.dataset.v;break;
@@ -1162,6 +1174,7 @@ document.addEventListener("click",e=>{
 });
 document.addEventListener("change",e=>{
   const t=e.target,k=t.dataset&&t.dataset.salin;if(!k)return;
+  if(!canView("salary")&&me()){toast("Wala kang access sa Salary.",true);return}
   if(k==="month"){if(t.value){sal.month=t.value;sal.adj={}}}
   else if(k==="half"){sal.half=t.value;sal.adj={}}
   else if(k==="emp")sal.emp=t.value;
@@ -1182,9 +1195,9 @@ function renderNotif(){
   $("#npanel").innerHTML=`<header><b>Notifications</b><div style="display:flex;gap:6px">${unread?'<button class="btn small" data-act="n-readall">Mark all read</button>':""}${ns.length?'<button class="btn small" data-act="n-clear">Clear</button>':""}</div></header>
    <div class="list">${ns.length?ns.slice(0,50).map(n=>`<div class="nitem ${n.read?"":"unread"} ${n.level==="out"?"out":""}"><span class="dot"></span><div style="flex:1;min-width:0"><div style="font-weight:${n.read?400:600}">${esc(n.text)}</div><div class="muted" style="font-size:12px">${new Date(n.ts).toLocaleString("en-PH",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</div>
      <div style="display:flex;gap:6px;margin-top:6px">${data.inventory.has(n.invId)?`<button class="btn small" data-act="restock" data-id="${esc(n.invId)}">Restock</button>`:""}${n.read?"":`<button class="btn small" data-act="n-read" data-id="${esc(n.id)}">Mark read</button>`}</div></div></div>`).join(""):'<div class="empty">Walang alerts. Aabisuhan ka rito kapag paubos na ang stock.</div>'}</div>`;
-  hideOwnerOnly($("#npanel"));
+  hideRestricted($("#npanel"));
 }
-function hideOwnerOnly(root){if(isOwner()||!me())return;root.querySelectorAll("[data-act]").forEach(b=>{if(OWNER_ONLY.includes(b.dataset.act))b.hidden=true})}
+function hideRestricted(root){if(isOwner()||!me())return;root.querySelectorAll("[data-act]").forEach(b=>{if(OWNER_ONLY.includes(b.dataset.act)||b.dataset.act==="restock"&&!canRestock())b.hidden=true})}
 function toggleBell(open){const p=$("#npanel");p.hidden=open==null?!p.hidden:!open;$("#bell").setAttribute("aria-expanded",String(!p.hidden));if(!p.hidden)renderNotif()}
 
 /* ---------- modal ---------- */
@@ -1205,6 +1218,7 @@ document.addEventListener("click",e=>{
   if(!b)return;const a=b.dataset.act,id=b.dataset.id;
   if(st.readOnly&&["restock","inv-new","inv-edit","inv-del","menu-new","menu-edit","menu-del","n-read","n-readall","n-clear"].concat(OWNER_ONLY).includes(a)){toast("View-only ka, hindi ka makakapag-edit.",true);return}
   if(OWNER_ONLY.includes(a)&&!isOwner()){toast("Owner lang ang pwedeng gumawa nito.",true);return}
+  if(a==="restock"&&!canRestock()){toast("Wala kang pahintulot mag-restock.",true);return}
   switch(a){
     case"logout":toggleBell(false);setMe("");break;
     case"staff-new":staffForm(null);break;
