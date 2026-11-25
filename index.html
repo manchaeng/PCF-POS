@@ -656,7 +656,10 @@ function usage(lines){
     const useAssignedCup=!!assigned;
     add(data.menu.get(l.menuId),l.size,l.qty,useAssignedCup);
     if(useAssignedCup)u[assigned.id]=(u[assigned.id]||0)+l.qty;
-    (l.addons||[]).forEach(a=>add(data.menu.get(a.id),null,l.qty,false));
+    (l.addons||[]).forEach(a=>{
+      if(a.source==="inventory"){if(data.inventory.has(a.id))u[a.id]=(u[a.id]||0)+(Number(a.amount)||0)*l.qty}
+      else add(data.menu.get(a.id),null,l.qty,false);
+    });
   });
   return u;
 }
@@ -701,25 +704,28 @@ function vPOS(){
 }
 function pickItem(id){
   const m=data.menu.get(id);if(!m)return;
-  const addons=list("menu").filter(a=>a.category==="Add-ons"&&a.active!==false&&a.id!==id);
+  const addons=list("menu").filter(a=>a.category==="Add-ons"&&a.active!==false&&a.id!==id).map(a=>({source:"menu",id:a.id,name:a.name,price:priceOf(a)}))
+    .concat(list("inventory").filter(a=>invKind(a)==="ingredient"&&a.isAddon===true).map(a=>({source:"inventory",id:a.id,name:a.name,price:Number(a.addonPrice)||0,amount:Number(a.addonQty)||0,unit:a.unit})));
   if(!m.sized&&(m.category==="Pastries"||m.category==="Add-ons"||!addons.length)){addToCart({menuId:id,name:m.name,size:null,qty:1,addons:[],unit:priceOf(m)});return}
   const sel={size:m.sized?"M":null,qty:1,addons:new Set()};
+  const addonKey=a=>a.source+":"+a.id,addonByKey=new Map(addons.map(a=>[addonKey(a),a]));
+  const selectedAddons=()=>[...sel.addons].map(k=>addonByKey.get(k)).filter(Boolean);
   const draw=()=>{
-    const unit=priceOf(m,sel.size)+sum([...sel.addons],a=>priceOf(data.menu.get(a)||{}));
+    const unit=priceOf(m,sel.size)+sum(selectedAddons(),a=>a.price);
     openModal(`<h2>${esc(m.name)}</h2>
      ${m.sized?`<div class="field"><label>Size</label><div class="size-options" role="radiogroup" aria-label="Size">${SIZES.map(s=>`<label class="check size-option ${sel.size===s?"selected":""}"><input type="radio" name="size-choice" data-s="${s}" value="${s}" ${sel.size===s?"checked":""}><span class="grow">${SIZE_LABELS[s]}</span><span class="num muted">${peso0(priceOf(m,s))}</span></label>`).join("")}</div></div>`:""}
-     ${addons.length?`<div class="field"><label>Add-ons</label>${addons.map(a=>`<label class="check"><input type="checkbox" data-a="${esc(a.id)}" ${sel.addons.has(a.id)?"checked":""}><span class="grow">${esc(a.name)}</span><span class="num muted">+${peso0(priceOf(a))}</span></label>`).join("")}</div>`:""}
+     ${addons.length?`<div class="field"><label>Add-ons</label>${addons.map(a=>{const key=addonKey(a);return `<label class="check"><input type="checkbox" data-a="${esc(key)}" ${sel.addons.has(key)?"checked":""}><span class="grow">${esc(a.name)}</span><span class="num muted">${a.source==="inventory"?esc(fnum(a.amount)+" "+a.unit+" · "):""}+${peso0(a.price)}</span></label>`}).join("")}</div>`:""}
      <div class="field"><label>Quantity</label><span class="stepper" style="align-self:flex-start"><button data-q="-1" aria-label="Bawasan">−</button><span class="num">${sel.qty}</span><button data-q="1" aria-label="Dagdagan">+</button></span></div>
      <div class="foot"><button class="btn" data-close>Cancel</button><button class="btn primary" data-add>Add ${peso(unit*sel.qty)}</button></div>`,el=>{
       el.querySelectorAll("[data-s]").forEach(r=>r.onchange=()=>{sel.size=r.value;draw()});
       el.querySelectorAll("[data-a]").forEach(c=>c.onchange=()=>{c.checked?sel.addons.add(c.dataset.a):sel.addons.delete(c.dataset.a);draw()});
       el.querySelectorAll("[data-q]").forEach(b=>b.onclick=()=>{sel.qty=Math.max(1,sel.qty+Number(b.dataset.q));draw()});
-      el.querySelector("[data-add]").onclick=()=>{closeModal();addToCart({menuId:id,name:m.name,size:sel.size,qty:sel.qty,unit,addons:[...sel.addons].map(a=>{const x=data.menu.get(a);return{id:a,name:x.name,price:priceOf(x)}})})};
+      el.querySelector("[data-add]").onclick=()=>{closeModal();addToCart({menuId:id,name:m.name,size:sel.size,qty:sel.qty,unit,addons:selectedAddons().map(a=>({id:a.id,source:a.source,name:a.name,price:a.price,amount:a.amount||0}))})};
     });
   };draw();
 }
 function addToCart(l){
-  const key=x=>x.menuId+"|"+x.size+"|"+x.addons.map(a=>a.id).sort().join(",");
+  const key=x=>x.menuId+"|"+x.size+"|"+x.addons.map(a=>(a.source||"menu")+":"+a.id).sort().join(",");
   const ex=st.cart.find(c=>key(c)===key(l));
   if(ex)ex.qty+=l.qty;else st.cart.push(l);
   st.override=false;scheduleRender();toast("Na-add: "+l.qty+"× "+l.name+(l.size?" ("+(SIZE_LABELS[l.size]||l.size)+")":""));
@@ -730,7 +736,7 @@ function checkout(){
   if(st.pay==="Cash"&&tend<T.total){toast("Kulang ang cash na tinanggap. Ilagay ang halaga o pindutin ang Exact.",true);$("#tend")&&$("#tend").focus();return}
   const u=usage(st.cart), sh=shortages(u);
   if(sh.length&&!st.override){
-    openModal(`<h2>Kulang ang stock</h2><p class="muted">Base sa recipe at cup assignments, hindi sapat ang mga ito para sa order:</p>
+    openModal(`<h2>Kulang ang stock</h2><p class="muted">Base sa recipe, selected add-ons, at cup assignments, hindi sapat ang mga ito para sa order:</p>
       <div class="rows">${sh.map(s=>`<div class="row"><div class="grow"><b>${esc(s.name)}</b><div class="sub num">Kailangan ${fnum(s.need)} ${esc(s.unit)}, meron ${fnum(s.have)}</div></div></div>`).join("")}</div>
       <p class="muted">Kung may stock pa talaga (hindi lang na-update), pwede mong ituloy. Magiging 0 ang stock ng mga ito.</p>
       <div class="foot"><button class="btn" data-close>Bumalik</button><button class="btn primary" data-go>Ituloy ang checkout</button></div>`,el=>{el.querySelector("[data-go]").onclick=()=>{st.override=true;closeModal();checkout()}});
@@ -750,25 +756,26 @@ function checkout(){
     <div class="sumrow" style="font-weight:700;border-top:1px dashed var(--line);padding-top:6px"><span>TOTAL · ${esc(sale.payment)}</span><span>${peso(sale.total)}</span></div>
     ${sale.payment==="Cash"?`<div class="sumrow"><span>Cash</span><span>${peso(sale.tendered)}</span></div><div class="sumrow" style="font-weight:700"><span>Sukli</span><span>${peso(sale.change)}</span></div>`:""}
     ${sale.ref?`<div class="sumrow"><span>GCash ref</span><span>${esc(sale.ref)}</span></div>`:""}
-   </div><p class="muted" style="margin:0">Na-record ang sale at nabawasan na ang recipe items at assigned cups sa Inventory.</p>
+   </div><p class="muted" style="margin:0">Na-record ang sale at nabawasan na ang recipe items, selected add-ons, at assigned cups sa Inventory.</p>
    <div class="foot"><button class="btn primary" data-close>Bagong order</button></div>`);
 }
 
 /* ---------- INVENTORY ---------- */
 function vInv(){
   const all=list("inventory").sort((a,b)=>a.name.localeCompare(b.name));
-  const counts={all:all.length,ingredients:all.filter(i=>invKind(i)==="ingredient").length,cups:all.filter(i=>invKind(i)==="cup").length};
+  const counts={all:all.length,ingredients:all.filter(i=>invKind(i)==="ingredient").length,cups:all.filter(i=>invKind(i)==="cup").length,addons:all.filter(i=>invKind(i)==="ingredient"&&i.isAddon===true).length};
   const cupItems=all.filter(i=>invKind(i)==="cup"),assignments=cupAssignments();
   const invalidCupSizes=SIZES.filter(s=>{const id=assignments[s],item=id&&data.inventory.get(id);return !!id&&(!item||invKind(item)!=="cup"||item.unit!=="pcs")});
-  const scoped=all.filter(i=>st.invGroup==="all"||(st.invGroup==="cups"?invKind(i)==="cup":invKind(i)==="ingredient"));
+  const scoped=all.filter(i=>st.invGroup==="all"||(st.invGroup==="cups"?invKind(i)==="cup":st.invGroup==="addons"?invKind(i)==="ingredient"&&i.isAddon===true:invKind(i)==="ingredient"));
   const q=st.invQ.toLowerCase();
   const rows=scoped.filter(i=>(!q||String(i.name||"").toLowerCase().includes(q))&&(st.invF==="all"||(st.invF==="low"?invStatus(i)!=="ok":invStatus(i)===st.invF)));
   const cnt=k=>scoped.filter(i=>k==="low"?invStatus(i)!=="ok":invStatus(i)===k).length;
   return `<div class="toolbar">
-    <div class="seg" role="group" aria-label="Inventory type">${[["all","All "+counts.all],["ingredients","Ingredients "+counts.ingredients],["cups","Cups "+counts.cups]].map(([k,l])=>`<button data-act="invGroup" data-v="${k}" aria-pressed="${st.invGroup===k}">${l}</button>`).join("")}</div>
+    <div class="seg" role="group" aria-label="Inventory type">${[["all","All "+counts.all],["ingredients","Ingredients "+counts.ingredients],["cups","Cups "+counts.cups],["addons","Add-ons "+counts.addons]].map(([k,l])=>`<button data-act="invGroup" data-v="${k}" aria-pressed="${st.invGroup===k}">${l}</button>`).join("")}</div>
     <input type="search" id="invQ" placeholder="Search inventory…" value="${esc(st.invQ)}" data-act="invQ" style="flex:1;min-width:160px;max-width:320px" aria-label="Search inventory">
     <div class="seg" role="group" aria-label="Filter">${[["all","Lahat "+scoped.length],["low","Low "+cnt("low")],["out","Ubos "+cnt("out")]].map(([k,l])=>`<button data-act="invF" data-f="${k}" aria-pressed="${st.invF===k}">${l}</button>`).join("")}</div>
-    <span class="grow"></span><button class="btn primary" data-act="inv-new" ${st.readOnly?"disabled":""}>+ Add ${st.invGroup==="cups"?"cup":"item"}</button></div>
+    <span class="grow"></span>${st.invGroup==="addons"?"":`<button class="btn primary" data-act="inv-new" ${st.readOnly?"disabled":""}>+ Add ${st.invGroup==="cups"?"cup":"item"}</button>`}</div>
+  ${st.invGroup==="addons"?`<p class="muted" style="margin:-4px 0 12px">Add-ons are existing ingredients marked for POS use. Stock here is shared with Ingredients; restocks and recipe deductions stay in sync.</p>`:""}
   ${st.invGroup==="cups"?`<div class="panel" style="margin-bottom:12px"><div class="panel-head"><h2>Cup assignment by order size</h2></div>
     <p class="muted" style="margin:0 0 10px">Assign which cup to deduct for each size. POS deducts 1 pc per drink. For sizes with an assigned cup, recipe cups are skipped to avoid double deduction; leave a size unassigned to use its recipe cup instead.</p>
     ${invalidCupSizes.length?`<p class="muted" style="margin:0 0 10px">Invalid assignment for ${invalidCupSizes.map(s=>SIZE_LABELS[s]).join(", ")}. Choose a Cups item measured in pcs and save; invalid assignments are not deducted.</p>`:""}
@@ -776,9 +783,9 @@ function vInv(){
     <div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="btn primary" data-act="cup-map-save" ${st.readOnly||!isOwner()?"disabled":""}>Save cup assignments</button></div></div>`:""}
   <div class="tablewrap"><table><thead><tr><th>Item</th><th class="r">Stock</th><th>Level</th><th class="r">Min</th><th>Status</th><th class="r">Actions</th></tr></thead><tbody>
   ${rows.length?rows.map(i=>{const s=invStatus(i);const pct=Math.min(100,(Number(i.stock)||0)/Math.max(1,(Number(i.threshold)||1)*3)*100);
-   return `<tr class="${s==="ok"?"":s}"><td><b>${esc(i.name)}</b> <span class="chip ${invKind(i)==="cup"?"best":"ok"}">${invKind(i)==="cup"?"Cup":"Ingredient"}</span></td><td class="r num">${fnum(i.stock)} ${esc(i.unit)}</td><td><div class="meter"><i style="width:${pct}%"></i></div></td><td class="r num muted">${fnum(i.threshold)} ${esc(i.unit)}</td><td>${statusChip(s)}</td>
+   return `<tr class="${s==="ok"?"":s}"><td><b>${esc(i.name)}</b> <span class="chip ${invKind(i)==="cup"?"best":"ok"}">${invKind(i)==="cup"?"Cup":"Ingredient"}</span>${invKind(i)==="ingredient"&&i.isAddon===true?` <span class="chip best">Add-on</span><div class="muted" style="font-size:12px">${fnum(i.addonQty)} ${esc(i.unit)} · ${peso0(i.addonPrice)} per add-on</div>`:""}</td><td class="r num">${fnum(i.stock)} ${esc(i.unit)}</td><td><div class="meter"><i style="width:${pct}%"></i></div></td><td class="r num muted">${fnum(i.threshold)} ${esc(i.unit)}</td><td>${statusChip(s)}</td>
    <td><div class="actions"><button class="btn small primary" data-act="restock" data-id="${esc(i.id)}" ${st.readOnly?"disabled":""}>Restock</button><button class="btn small" data-act="inv-edit" data-id="${esc(i.id)}" ${st.readOnly?"disabled":""}>Edit</button><button class="btn small danger" data-act="inv-del" data-id="${esc(i.id)}" ${st.readOnly?"disabled":""}>Delete</button></div></td></tr>`}).join("")
-   :`<tr><td colspan="6" class="empty">${scoped.length?"Walang tumugma sa filter.":st.invGroup==="cups"?"Wala pang cups. Pumili ng + Add cup para magdagdag.":st.invGroup==="ingredients"?"Wala pang ingredients. Pumili ng + Add item para magdagdag.":"Wala pang inventory items. Pindutin ang + Add item para magsimula."}</td></tr>`}
+   :`<tr><td colspan="6" class="empty">${scoped.length?"Walang tumugma sa filter.":st.invGroup==="cups"?"Wala pang cups. Pumili ng + Add cup para magdagdag.":st.invGroup==="addons"?"Wala pang add-ons. I-edit ang ingredient at piliin ang Available as POS add-on.":st.invGroup==="ingredients"?"Wala pang ingredients. Pindutin ang + Add item para magsimula.":"Wala pang inventory items. Pindutin ang + Add item para magsimula."}</td></tr>`}
   </tbody></table></div>`;
 }
 function saveCupAssignments(){
@@ -793,22 +800,34 @@ function saveCupAssignments(){
   toast("Na-save ang cup assignments.");
 }
 function invForm(id){
-  const src=id?data.inventory.get(id):{name:"",kind:st.invGroup==="cups"?"cup":"ingredient",unit:st.invGroup==="cups"?"pcs":"g",stock:0,threshold:0};
+  const src=id?data.inventory.get(id):{name:"",kind:st.invGroup==="cups"?"cup":"ingredient",unit:st.invGroup==="cups"?"pcs":"g",stock:0,threshold:0,isAddon:false,addonQty:0,addonPrice:0};
   if(!src)return;
   const i=Object.assign({},src,{kind:invKind(src)});
+  const canBeAddon=i.kind==="ingredient",isAddon=canBeAddon&&i.isAddon===true;
   openModal(`<h2>${id?"Edit item":"Bagong inventory item"}</h2>
    <div class="field"><label for="f-name">Pangalan</label><input type="text" id="f-name" value="${esc(i.name)}" placeholder="hal. Oat Milk"></div>
    <div class="form2"><div class="field"><label for="f-kind">Inventory group</label><select id="f-kind"><option value="ingredient" ${i.kind==="ingredient"?"selected":""}>Ingredient</option><option value="cup" ${i.kind==="cup"?"selected":""}>Cup</option></select></div>
    <div class="field"><label for="f-unit">Unit</label><select id="f-unit">${UNITS.concat(UNITS.includes(i.unit)?[]:[i.unit]).map(u=>`<option ${u===i.unit?"selected":""}>${esc(u)}</option>`).join("")}</select></div>
    <div class="field"><label for="f-stock">Current stock</label><input type="number" id="f-stock" min="0" step="any" value="${esc(i.stock)}"></div>
    <div class="field"><label for="f-th">Min threshold (alert)</label><input type="number" id="f-th" min="0" step="any" value="${esc(i.threshold)}"></div></div>
-   <p class="muted" style="margin:0">Magbibigay ng notification kapag umabot o bumaba sa minimum ang stock. Para sa cups, gumamit ng isang item bawat uri (hal. 12oz hot o 12oz iced) at unit na pcs. I-assign ang cups sa order sizes sa Cups tab; hindi na kailangang ilagay sa recipe para sa mga size na naka-assign.</p>
+   <div id="f-addon-option" ${canBeAddon?"":"hidden"}><label class="check"><input type="checkbox" id="f-addon" ${isAddon?"checked":""}><span>Available as a POS add-on</span></label>
+    <div class="form2" id="f-addon-config" ${isAddon?"":"hidden"}>
+     <div class="field"><label id="f-addon-qty-label" for="f-addon-qty">Amount per add-on (${esc(i.unit)})</label><input type="number" id="f-addon-qty" min="0" step="any" value="${esc(i.addonQty||0)}"></div>
+     <div class="field"><label for="f-addon-price">Price per add-on ₱</label><input type="number" id="f-addon-price" min="0" step="any" value="${esc(i.addonPrice||0)}"></div></div></div>
+   <p class="muted" style="margin:0">${i.kind==="cup"?"Magbibigay ng notification kapag umabot o bumaba sa minimum ang stock. Gumamit ng isang item bawat uri ng cup at unit na pcs. I-assign ang cups sa order sizes sa Cups tab.": "Magbibigay ng notification kapag umabot o bumaba sa minimum ang stock. Para lumabas ang ingredient sa POS add-ons, i-check ang Available as a POS add-on at itakda ang dami kada add-on at presyo."}</p>
    <div class="foot"><button class="btn" data-close>Cancel</button><button class="btn primary" data-save>Save</button></div>`,el=>{
     el.querySelector("#f-name").focus();
-    el.querySelector("#f-kind").onchange=()=>{const unit=el.querySelector("#f-unit");if(el.querySelector("#f-kind").value==="cup"&&unit.value==="g")unit.value="pcs"};
+    const kindField=el.querySelector("#f-kind"),unitField=el.querySelector("#f-unit"),addonCheck=el.querySelector("#f-addon"),addonOption=el.querySelector("#f-addon-option"),addonConfig=el.querySelector("#f-addon-config");
+    const syncAddon=()=>{const enabled=kindField.value==="ingredient";addonOption.hidden=!enabled;if(!enabled)addonCheck.checked=false;addonConfig.hidden=!enabled||!addonCheck.checked;el.querySelector("#f-addon-qty-label").textContent="Amount per add-on ("+unitField.value+")"};
+    kindField.onchange=()=>{if(kindField.value==="cup"&&unitField.value==="g")unitField.value="pcs";syncAddon()};
+    unitField.onchange=syncAddon;
+    addonCheck.onchange=syncAddon;
     el.querySelector("[data-save]").onclick=()=>{
       const name=el.querySelector("#f-name").value.trim();if(!name){toast("Lagyan ng pangalan ang item.",true);return}
-      const body={name,kind:el.querySelector("#f-kind").value,unit:el.querySelector("#f-unit").value,stock:Math.max(0,Number(el.querySelector("#f-stock").value)||0),threshold:Math.max(0,Number(el.querySelector("#f-th").value)||0),updated:Date.now()};
+      const kind=kindField.value,isAddon=kind==="ingredient"&&addonCheck.checked,addonQty=Number(el.querySelector("#f-addon-qty").value)||0,addonPrice=Number(el.querySelector("#f-addon-price").value)||0;
+      if(isAddon&&addonQty<=0){toast("Ilagay ang dami ng ingredient kada add-on.",true);return}
+      if(isAddon&&addonPrice<0){toast("Hindi pwedeng negative ang presyo ng add-on.",true);return}
+      const body={name,kind,unit:unitField.value,stock:Math.max(0,Number(el.querySelector("#f-stock").value)||0),threshold:Math.max(0,Number(el.querySelector("#f-th").value)||0),isAddon,addonQty,addonPrice,updated:Date.now()};
       const key=id||name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)+"-"+uid().slice(-4);
       const prevStock=id?Number(i.stock)||0:Infinity, prevTh=id?Number(i.threshold)||0:-1;
       put("inventory",key,body);
