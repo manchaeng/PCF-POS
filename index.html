@@ -357,7 +357,7 @@ const CASHIER_VIEWS=["dashboard","pos","inventory"];
 const ACCESS_OPTIONS=[["dashboard","Dashboard"],["pos","POS / Cashier"],["inventory","Inventory"],["restock","Restock inventory"],["reports","Reports"],["menu","Menu management"],["salary","Salary & payroll"]];
 const DEFAULT_CASHIER_ACCESS=[...CASHIER_VIEWS,"restock"];
 const ACCESS_LABELS=Object.fromEntries(ACCESS_OPTIONS);
-const OWNER_ONLY=["inv-new","inv-edit","inv-del","menu-new","menu-edit","menu-del","staff-new","staff-edit","staff-toggle","staff-del","n-clear"];
+const OWNER_ONLY=["inv-new","inv-edit","inv-del","menu-new","menu-edit","menu-del","staff-new","staff-edit","staff-toggle","staff-del","sale-del","n-clear"];
 const UNITS=["g","kg","ml","L","pcs","pack"];
 const COLS=["inventory","menu","sales","notifications","staff","employees","timecards","payroll","settings"];
 const MEKEY="kapehan-pos-me";
@@ -598,6 +598,12 @@ const isAddon=id=>{const m=data.menu.get(id);return m&&m.category==="Add-ons"};
 function salesIn(from,to){return list("sales").filter(s=>s.ts>=from&&s.ts<to)}
 function itemsSold(sales){let n=0;sales.forEach(s=>(s.items||[]).forEach(i=>{if(!isAddon(i.menuId))n+=Number(i.qty)||0}));return n}
 const sum=(a,f)=>a.reduce((x,y)=>x+(Number(f(y))||0),0);
+function saleDelete(id){
+  const sale=data.sales.get(id);if(!sale)return;
+  const items=(sale.items||[]).map(i=>`${i.qty}× ${i.name}${i.size?" ("+(SIZE_LABELS[i.size]||i.size)+")":""}`).join(", ");
+  openModal(`<h2>I-delete ang sale na ito?</h2><p><b>${esc(items||"Sale")}</b></p><p class="muted">Permanenteng mabubura ang sale at mawawala ito sa Reports. Hindi mababago ang inventory.</p>
+   <div class="foot"><button class="btn" data-close>Cancel</button><button class="btn danger" data-del>Delete sale</button></div>`,el=>{el.querySelector("[data-del]").onclick=()=>{del("sales",id);closeModal();toast("Na-delete ang sale")}})
+}
 
 /* ---------- DASHBOARD ---------- */
 function vDash(){
@@ -631,7 +637,7 @@ function vDash(){
     </div>
   </div>
   <div class="panel"><div class="panel-head"><h2>Latest sales</h2><span class="muted">Huling ${recent.length}</span></div>
-    <div class="rows">${recent.length?recent.map(s=>`<div class="row"><div class="grow"><b>${esc((s.items||[]).map(i=>i.qty+"× "+i.name+(i.size?" ("+(SIZE_LABELS[i.size]||i.size)+")":"")).join(", "))}</b><div class="sub">${new Date(s.ts).toLocaleString("en-PH",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})} · ${esc(s.payment)}${s.discountLabel?" · "+esc(s.discountLabel):""}${s.cashierName?" · "+esc(s.cashierName):""}</div></div><span class="num">${peso(s.total)}</span></div>`).join(""):`<div class="empty">Wala pang sales.</div>`}</div>
+    <div class="rows">${recent.length?recent.map(s=>`<div class="row"><div class="grow"><b>${esc((s.items||[]).map(i=>i.qty+"× "+i.name+(i.size?" ("+(SIZE_LABELS[i.size]||i.size)+")":"")).join(", "))}</b><div class="sub">${new Date(s.ts).toLocaleString("en-PH",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})} · ${esc(s.payment)}${s.discountLabel?" · "+esc(s.discountLabel):""}${s.cashierName?" · "+esc(s.cashierName):""}</div></div><span class="num">${peso(s.total)}</span><button class="btn small danger" data-act="sale-del" data-id="${esc(s.id)}" ${st.readOnly?"disabled":""}>Delete</button></div>`).join(""):`<div class="empty">Wala pang sales.</div>`}</div>
   </div>`;
 }
 
@@ -852,7 +858,18 @@ function vReports(){
     <div class="rows">${slow.length?slow.map(r=>`<div class="row"><div class="grow"><b>${esc(r.name)}</b><div class="sub">${r.qty?r.qty+" sold · "+peso0(r.rev):"Walang benta sa period na ito"}</div></div>${r.qty?"":'<span class="chip low">0 sold</span>'}</div>`).join(""):`<div class="empty">Wala pang menu items.</div>`}</div>
     <p class="muted" style="font-size:12px;margin:12px 0 0">Tip: i-promo o i-bundle ang mga ito, o tanggalin sa menu kung matagal nang mahina.</p></div>
   </div>
-  ${byCashier(sales)}`;
+  ${byCashier(sales)}
+  ${salesHistory()}`;
+}
+function salesHistory(){
+  const rows=list("sales").sort((a,b)=>b.ts-a.ts);
+  return `<div class="panel sales-history"><div class="panel-head"><div><h2>Sales history</h2><span class="muted">${rows.length} recorded sale${rows.length===1?"":"s"}</span></div></div>
+   ${rows.length?`<div class="tablewrap"><table><thead><tr><th>Date</th><th>Items</th><th>Cashier</th><th>Payment</th><th class="r">Total</th><th class="r">Actions</th></tr></thead><tbody>
+    ${rows.map(s=>`<tr><td>${new Date(s.ts).toLocaleString("en-PH",{year:"numeric",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</td>
+     <td>${(s.items||[]).map(i=>`${Number(i.qty)||0}× ${esc(i.name)}${i.size?" ("+esc(SIZE_LABELS[i.size]||i.size)+")":""}`).join("<br>")||"—"}</td>
+     <td>${esc(s.cashierName||(s.cashierId?(data.staff.get(s.cashierId)||{}).name:"")||"—")}</td><td>${esc(s.payment||"—")}</td><td class="r num">${peso(s.total)}</td>
+     <td class="r"><button class="btn small danger" data-act="sale-del" data-id="${esc(s.id)}" ${st.readOnly?"disabled":""}>Delete</button></td></tr>`).join("")}
+   </tbody></table></div>`:`<div class="empty">Wala pang sales na naka-record.</div>`}</div>`;
 }
 function byCashier(sales){
   const m={};sales.forEach(s=>{const k=s.cashierId||"none";m[k]=m[k]||{name:s.cashierId?(data.staff.get(s.cashierId)||{}).name||s.cashierName||"(dating staff)":"Walang naka-record",n:0,rev:0};m[k].n++;m[k].rev+=Number(s.total)||0});
@@ -1270,6 +1287,7 @@ document.addEventListener("click",e=>{
     case"staff-edit":staffForm(id);break;
     case"staff-toggle":staffToggle(id);break;
     case"staff-del":staffDelete(id);break;
+    case"sale-del":saleDelete(id);return;
     case"go":st.invF=b.dataset.filter||"all";location.hash=b.dataset.to;break;
     case"cat":st.cat=b.dataset.c;scheduleRender();break;
     case"pick":pickItem(id);break;
