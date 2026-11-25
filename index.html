@@ -357,7 +357,7 @@ const CASHIER_VIEWS=["dashboard","pos","inventory"];
 const ACCESS_OPTIONS=[["dashboard","Dashboard"],["pos","POS / Cashier"],["inventory","Inventory"],["restock","Restock inventory"],["reports","Reports"],["menu","Menu management"],["salary","Salary & payroll"]];
 const DEFAULT_CASHIER_ACCESS=[...CASHIER_VIEWS,"restock"];
 const ACCESS_LABELS=Object.fromEntries(ACCESS_OPTIONS);
-const OWNER_ONLY=["inv-new","inv-edit","inv-del","cup-map-save","menu-new","menu-edit","menu-del","staff-new","staff-edit","staff-toggle","staff-del","sale-del","n-clear"];
+const OWNER_ONLY=["inv-new","inv-edit","inv-del","cup-map-save","menu-new","menu-edit","menu-del","menu-dup","staff-new","staff-edit","staff-toggle","staff-del","sale-del","n-clear"];
 const UNITS=["g","kg","ml","L","pcs","pack"];
 const COLS=["inventory","menu","sales","notifications","staff","employees","timecards","payroll","settings"];
 const MEKEY="kapehan-pos-me";
@@ -992,18 +992,20 @@ function vMenu(){
       <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><h2>${esc(m.name)}</h2>${m.active===false?'<span class="chip low">Hidden</span>':""}</div>
       <div class="num muted">${m.sized?SIZES.map(s=>SIZE_LABELS[s]+" "+peso0(priceOf(m,s))).join(" · "):peso0(priceOf(m))}</div>
       <ul>${(m.recipe||[]).map(r=>{const i=data.inventory.get(r.inv);const amount=m.sized?SIZES.map(s=>`${SIZE_SHORT_LABELS[s]}: ${fnum(recipeAmount(r,s))}`).join(" · "):fnum(r.qty);return `<li>${amount} ${esc(i?i.unit:"")} ${esc(i?i.name:"(deleted item)")}</li>`}).join("")||"<li>Walang recipe</li>"}</ul>
-      <div style="display:flex;gap:6px;margin-top:auto"><button class="btn small" data-act="menu-edit" data-id="${esc(m.id)}" ${st.readOnly?"disabled":""}>Edit</button><button class="btn small danger" data-act="menu-del" data-id="${esc(m.id)}" ${st.readOnly?"disabled":""}>Delete</button></div></div>`).join("")}</div></div>`}).join("")||`<div class="panel empty">Wala pang menu. Pindutin ang + Add drink para magsimula.</div>`}`;
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:auto"><button class="btn small" data-act="menu-edit" data-id="${esc(m.id)}" ${st.readOnly?"disabled":""}>Edit</button><button class="btn small" data-act="menu-dup" data-id="${esc(m.id)}" ${st.readOnly?"disabled":""}>Duplicate</button><button class="btn small danger" data-act="menu-del" data-id="${esc(m.id)}" ${st.readOnly?"disabled":""}>Delete</button></div></div>`).join("")}</div></div>`}).join("")||`<div class="panel empty">Wala pang menu. Pindutin ang + Add drink para magsimula.</div>`}`;
 }
-function menuForm(id){
+function menuForm(id,duplicate){
   const src=id?data.menu.get(id):{name:"",category:st.cat||"Espresso",sized:true,prices:{SH:0,SI:0,M:0,L:0},price:0,recipe:[],active:true};
+  if(!src)return;
   const m=JSON.parse(JSON.stringify(src));m.recipe=m.recipe||[];m.prices=m.prices||{};
+  if(duplicate)m.name=src.name+" (Copy)";
   if(m.prices.SH==null)m.prices.SH=Number(m.prices.S)||0;
   if(m.prices.SI==null)m.prices.SI=Number(m.prices.S)||0;
   if(m.prices.M==null)m.prices.M=0;
   if(m.prices.L==null)m.prices.L=0;
   if(m.sized)m.recipe.forEach(r=>SIZES.forEach(s=>{if(r["qty"+s]==null)r["qty"+s]=recipeAmount(r,s)}));
   const inv=list("inventory").sort((a,b)=>a.name.localeCompare(b.name));
-  const draw=()=>{openModal(`<h2>${id?"Edit "+esc(src.name):"Bagong item"}</h2>
+  const draw=()=>{openModal(`<h2>${duplicate?"Duplicate "+esc(src.name):id?"Edit "+esc(src.name):"Bagong item"}</h2>
    <div class="form2"><div class="field"><label for="m-name">Pangalan</label><input type="text" id="m-name" value="${esc(m.name)}" placeholder="hal. Iced Latte"></div>
     <div class="field"><label for="m-cat">Category</label><select id="m-cat">${CATS.map(c=>`<option ${c===m.category?"selected":""}>${c}</option>`).join("")}</select></div></div>
    <label class="check"><input type="checkbox" id="m-sized" ${m.sized?"checked":""}><span class="grow">May sizes (Small hot/iced, Medium, Large)</span></label>
@@ -1030,9 +1032,10 @@ function menuForm(id){
       if(m.recipe.some(r=>(m.sized?SIZES.map(s=>Number(r["qty"+s])||0):[Number(r.qty)||0]).some(q=>q<0))){toast("Hindi pwedeng negative ang dami ng recipe item.",true);return}
       const body={name:m.name.trim(),category:m.category,sized:m.sized,active:m.active,recipe:m.recipe.filter(r=>r.inv&&(m.sized?SIZES.some(s=>Number(r["qty"+s])>0):Number(r.qty)>0)).map(r=>m.sized?{inv:r.inv,qtySH:Number(r.qtySH)||0,qtySI:Number(r.qtySI)||0,qtyM:Number(r.qtyM)||0,qtyL:Number(r.qtyL)||0}:{inv:r.inv,qty:Number(r.qty)||0})};
       if(m.sized)body.prices={SH:m.prices.SH,SI:m.prices.SI,M:m.prices.M,L:m.prices.L};else body.price=m.price;
-      put("menu",id||body.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)+"-"+uid().slice(-4),body);closeModal();toast("Na-save ang "+body.name)};
+      const savedId=id&&!duplicate?id:body.name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40)+"-"+uid().slice(-4);
+      put("menu",savedId,body);closeModal();toast(duplicate?"Na-duplicate ang "+body.name:id?"Na-save ang "+body.name:"Na-save ang "+body.name)};
   });
-  if(!id)setTimeout(()=>{const f=$("#m-name");f&&f.focus()},0)};
+  if(!id||duplicate)setTimeout(()=>{const f=$("#m-name");f&&f.focus()},0)};
   draw();
 }
 function menuDelete(id){const m=data.menu.get(id);if(!m)return;
@@ -1363,6 +1366,7 @@ document.addEventListener("click",e=>{
     case"rankBy":st.rankBy=b.dataset.r;scheduleRender();break;
     case"menu-new":menuForm(null);break;
     case"menu-edit":menuForm(id);break;
+    case"menu-dup":menuForm(id,true);break;
     case"menu-del":menuDelete(id);break;
     case"n-read":put("notifications",id,Object.assign({},data.notifications.get(id),{read:true}));break;
     case"n-readall":list("notifications").filter(n=>!n.read).forEach(n=>put("notifications",n.id,Object.assign({},data.notifications.get(n.id),{read:true})));break;
